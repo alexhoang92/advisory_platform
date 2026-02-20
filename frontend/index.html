@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KOL Tracker — Who Actually Calls It Right?</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.0/axios.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo { font-size: 20px; font-weight: 700; color: #00ff88; }
+    .logo span { color: #fff; }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a {
+      color: #888;
+      text-decoration: none;
+      font-size: 14px;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: #fff; }
+    .btn-login {
+      background: #00ff88;
+      color: #000;
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.2s;
+    }
+    .btn-login:hover { opacity: 0.85; }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 64px 32px 48px;
+      background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%);
+    }
+    .hero h1 { font-size: 42px; font-weight: 800; margin-bottom: 16px; }
+    .hero h1 span { color: #00ff88; }
+    .hero p { font-size: 18px; color: #888; max-width: 500px; margin: 0 auto 32px; }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      display: flex;
+      justify-content: center;
+      gap: 48px;
+      margin-bottom: 32px;
+    }
+    .stat { text-align: center; }
+    .stat-number { font-size: 32px; font-weight: 800; color: #00ff88; }
+    .stat-label { font-size: 13px; color: #666; margin-top: 4px; }
+
+    /* ── Search ── */
+    .search-container {
+      max-width: 480px;
+      margin: 0 auto;
+      position: relative;
+    }
+    .search-input {
+      width: 100%;
+      padding: 14px 48px 14px 20px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 16px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus { border-color: #00ff88; }
+    .search-icon {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #555;
+      font-size: 18px;
+    }
+
+    /* ── Search Results ── */
+    .search-results {
+      max-width: 800px;
+      margin: 24px auto;
+      padding: 0 32px;
+      display: none;
+    }
+    .search-results.visible { display: block; }
+    .search-result-item {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .search-result-left { flex: 1; }
+    .search-result-handle { font-weight: 600; color: #fff; margin-bottom: 4px; }
+    .search-result-signal { font-size: 13px; color: #888; }
+
+    /* ── Period Filter ── */
+    .period-filter {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 32px 32px;
+    }
+    .period-btn {
+      padding: 8px 24px;
+      border-radius: 20px;
+      border: 1px solid #2a2a2a;
+      background: transparent;
+      color: #888;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .period-btn.active {
+      background: #00ff88;
+      color: #000;
+      border-color: #00ff88;
+      font-weight: 600;
+    }
+
+    /* ── Leaderboard ── */
+    .leaderboard {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 32px 64px;
+    }
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #fff;
+    }
+    .kol-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.1s;
+    }
+    .kol-card:hover {
+      border-color: #00ff88;
+      transform: translateY(-1px);
+    }
+    .kol-rank {
+      font-size: 22px;
+      font-weight: 800;
+      color: #333;
+      width: 32px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .kol-rank.top { color: #00ff88; }
+    .kol-info { flex: 1; }
+    .kol-handle { font-weight: 700; font-size: 16px; color: #fff; }
+    .kol-type { font-size: 13px; color: #666; margin-top: 2px; }
+    .kol-metrics {
+      display: flex;
+      gap: 32px;
+      align-items: center;
+    }
+    .metric { text-align: center; }
+    .metric-value {
+      font-size: 20px;
+      font-weight: 800;
+      color: #fff;
+    }
+    .metric-value.positive { color: #00ff88; }
+    .metric-value.negative { color: #ff4444; }
+    .metric-label { font-size: 11px; color: #555; margin-top: 2px; }
+    .calls-badge {
+      background: #2a2a2a;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      color: #888;
+    }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 200;
+      padding: 32px;
+      overflow-y: auto;
+    }
+    .modal-overlay.visible { display: flex; justify-content: center; }
+    .modal {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 700px;
+      width: 100%;
+      height: fit-content;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .modal-handle { font-size: 24px; font-weight: 800; }
+    .modal-close {
+      background: #2a2a2a;
+      border: none;
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .score-card {
+      background: #0f0f0f;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+    .score-period { font-size: 12px; color: #666; margin-bottom: 8px; }
+    .score-winrate { font-size: 28px; font-weight: 800; color: #00ff88; }
+    .score-calls { font-size: 12px; color: #555; margin-top: 4px; }
+    .recs-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #888;
+      margin-bottom: 12px;
+    }
+    .rec-item {
+      background: #0f0f0f;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .rec-ticker { font-weight: 800; font-size: 16px; color: #fff; }
+    .rec-signal { font-size: 12px; color: #666; margin-top: 4px; max-width: 400px; }
+    .direction-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .direction-badge.BUY  { background: #00331a; color: #00ff88; }
+    .direction-badge.SELL { background: #330000; color: #ff4444; }
+    .direction-badge.SHORT{ background: #330000; color: #ff4444; }
+    .direction-badge.HOLD { background: #1a1a00; color: #ffcc00; }
+
+    /* ── Subscribe Modal ── */
+    .subscribe-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 300;
+      justify-content: center;
+      align-items: center;
+    }
+    .subscribe-modal.visible { display: flex; }
+    .subscribe-box {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+    }
+    .subscribe-box h2 { font-size: 24px; margin-bottom: 8px; }
+    .subscribe-box p { color: #888; margin-bottom: 24px; font-size: 14px; }
+    .subscribe-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: #0f0f0f;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+    .subscribe-input:focus { border-color: #00ff88; }
+    .btn-subscribe {
+      width: 100%;
+      padding: 12px;
+      background: #00ff88;
+      color: #000;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    .btn-close-modal {
+      background: none;
+      border: none;
+      color: #555;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    /* ── Request KOL Modal ── */
+    .request-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 300;
+      justify-content: center;
+      align-items: center;
+    }
+    .request-modal.visible { display: flex; }
+    .request-box {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 420px;
+      width: 100%;
+    }
+    .request-box h2 { font-size: 22px; margin-bottom: 8px; }
+    .request-box p { color: #888; margin-bottom: 24px; font-size: 14px; }
+    .request-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: #0f0f0f;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+    .request-textarea {
+      width: 100%;
+      padding: 12px 16px;
+      background: #0f0f0f;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      margin-bottom: 12px;
+      outline: none;
+      height: 80px;
+      resize: none;
+    }
+    .btn-request {
+      width: 100%;
+      padding: 12px;
+      background: #00ff88;
+      color: #000;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    .loading { text-align: center; padding: 48px; color: #555; }
+    .empty { text-align: center; padding: 32px; color: #555; font-size: 14px; }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="logo">KOL<span>Tracker</span></div>
+  <div class="nav-links">
+    <a onclick="showRequestModal()">Request a KOL</a>
+    <button class="btn-login" onclick="showSubscribeModal()">Get Updates</button>
+  </div>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <h1>Who Actually <span>Calls It Right?</span></h1>
+  <p>We track stock predictions from top financial influencers and score their accuracy.</p>
+
+  <div class="stats-bar">
+    <div class="stat">
+      <div class="stat-number" id="stat-kols">—</div>
+      <div class="stat-label">KOLs Tracked</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number" id="stat-recs">—</div>
+      <div class="stat-label">Calls Recorded</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number" id="stat-tweets">—</div>
+      <div class="stat-label">Tweets Analyzed</div>
+    </div>
+  </div>
+
+  <div class="search-container">
+    <input
+      class="search-input"
+      id="search-input"
+      type="text"
+      placeholder="Search by $TICKER or @handle..."
+      oninput="handleSearch(this.value)"
+    />
+    <span class="search-icon">🔍</span>
+  </div>
+</div>
+
+<!-- Search Results -->
+<div class="search-results" id="search-results"></div>
+
+<!-- Period Filter -->
+<div class="period-filter">
+  <button class="period-btn" onclick="setPeriod('T1D', this)">1 Day</button>
+  <button class="period-btn active" onclick="setPeriod('T7D', this)">7 Days</button>
+  <button class="period-btn" onclick="setPeriod('T30D', this)">30 Days</button>
+</div>
+
+<!-- Leaderboard -->
+<div class="leaderboard">
+  <div class="section-title">🏆 Leaderboard</div>
+  <div id="leaderboard-list"><div class="loading">Loading KOLs...</div></div>
+</div>
+
+<!-- KOL Detail Modal -->
+<div class="modal-overlay" id="kol-modal" onclick="closeModal(event)">
+  <div class="modal" id="kol-modal-content"></div>
+</div>
+
+<!-- Subscribe Modal -->
+<div class="subscribe-modal" id="subscribe-modal">
+  <div class="subscribe-box">
+    <h2>📬 Stay Updated</h2>
+    <p>Get notified when top KOLs make new stock calls.</p>
+    <input class="subscribe-input" id="subscribe-email"
+           type="email" placeholder="your@email.com" />
+    <button class="btn-subscribe" onclick="submitSubscribe()">Subscribe for Free</button>
+    <button class="btn-close-modal" onclick="hideSubscribeModal()">No thanks</button>
+  </div>
+</div>
+
+<!-- Request KOL Modal -->
+<div class="request-modal" id="request-modal">
+  <div class="request-box">
+    <h2>➕ Request a KOL</h2>
+    <p>Know a financial influencer we should track? Let us know.</p>
+    <input class="request-input" id="request-handle"
+           type="text" placeholder="@twitter_handle" />
+    <textarea class="request-textarea" id="request-reason"
+              placeholder="Why should we track them?"></textarea>
+    <button class="btn-request" onclick="submitRequest()">Submit Request</button>
+    <button class="btn-close-modal" onclick="hideRequestModal()">Cancel</button>
+  </div>
+</div>
+
+<script>
+  const API = "https://literate-space-zebra-56rqjwv5wxjcpg64-8000.app.github.dev";
+  let currentPeriod = "T7D";
+  let searchTimeout = null;
+
+  // ── Load stats ────────────────────────────────────────────
+  async function loadStats() {
+    try {
+      const res  = await axios.get(`${API}/stats`);
+      const data = res.data;
+      document.getElementById("stat-kols").textContent   = data.kols_tracked;
+      document.getElementById("stat-recs").textContent   = data.recommendations;
+      document.getElementById("stat-tweets").textContent = data.tweets_analyzed;
+    } catch(e) {
+      console.error("Stats load failed", e);
+    }
+  }
+
+  // ── Load leaderboard ──────────────────────────────────────
+  async function loadLeaderboard(period = "T7D") {
+    const list = document.getElementById("leaderboard-list");
+    list.innerHTML = '<div class="loading">Loading...</div>';
+
+    try {
+      const res  = await axios.get(`${API}/kols?period=${period}`);
+      const kols = res.data;
+
+      if (!kols.length) {
+        list.innerHTML = '<div class="empty">No KOLs found.</div>';
+        return;
+      }
+
+      list.innerHTML = kols.map((kol, i) => {
+        const wr      = kol.score.win_rate;
+        const ret     = kol.score.avg_return;
+        const calls   = kol.score.total_calls;
+        const retClass= ret >= 0 ? "positive" : "negative";
+        const retStr  = ret >= 0 ? `+${ret}%` : `${ret}%`;
+        const rankClass = i < 3 ? "kol-rank top" : "kol-rank";
+
+        return `
+          <div class="kol-card" onclick="openKOL('${kol.handle}')">
+            <div class="${rankClass}">${i + 1}</div>
+            <div class="kol-info">
+              <div class="kol-handle">@${kol.handle}</div>
+              <div class="kol-type">${kol.content_type || "—"}</div>
+            </div>
+            <div class="kol-metrics">
+              <div class="metric">
+                <div class="metric-value ${wr >= 50 ? 'positive' : 'negative'}">${wr}%</div>
+                <div class="metric-label">Win Rate</div>
+              </div>
+              <div class="metric">
+                <div class="metric-value ${retClass}">${retStr}</div>
+                <div class="metric-label">Avg Return</div>
+              </div>
+              <div class="calls-badge">${calls} calls</div>
+            </div>
+          </div>`;
+      }).join("");
+
+    } catch(e) {
+      list.innerHTML = '<div class="empty">Failed to load data. Is the API running?</div>';
+    }
+  }
+
+  // ── Period filter ─────────────────────────────────────────
+  function setPeriod(period, btn) {
+    currentPeriod = period;
+    document.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    loadLeaderboard(period);
+  }
+
+  // ── Open KOL detail modal ─────────────────────────────────
+  async function openKOL(handle) {
+    const overlay = document.getElementById("kol-modal");
+    const content = document.getElementById("kol-modal-content");
+    content.innerHTML = '<div class="loading">Loading...</div>';
+    overlay.classList.add("visible");
+
+    try {
+      const res = await axios.get(`${API}/kols/${handle}`);
+      const k   = res.data;
+
+      const scoresHtml = ["T1D","T7D","T30D"].map(p => {
+        const s = k.scores[p];
+        return `
+          <div class="score-card">
+            <div class="score-period">${p}</div>
+            <div class="score-winrate">${s.win_rate}%</div>
+            <div class="score-calls">${s.total_calls} calls</div>
+          </div>`;
+      }).join("");
+
+      const recsHtml = k.recommendations.length
+        ? k.recommendations.map(r => `
+            <div class="rec-item">
+              <div>
+                <div class="rec-ticker">$${r.ticker}</div>
+                <div class="rec-signal">${r.signal_text || "—"}</div>
+              </div>
+              <span class="direction-badge ${r.direction}">${r.direction}</span>
+            </div>`).join("")
+        : '<div class="empty">No recommendations found yet.</div>';
+
+      content.innerHTML = `
+        <div class="modal-header">
+          <div class="modal-handle">@${k.handle}</div>
+          <button class="modal-close" onclick="document.getElementById('kol-modal').classList.remove('visible')">✕</button>
+        </div>
+        <div class="score-grid">${scoresHtml}</div>
+        <div class="recs-title">Recent Recommendations</div>
+        ${recsHtml}`;
+
+    } catch(e) {
+      content.innerHTML = '<div class="empty">Failed to load KOL details.</div>';
+    }
+  }
+
+  function closeModal(e) {
+    if (e.target.id === "kol-modal") {
+      document.getElementById("kol-modal").classList.remove("visible");
+    }
+  }
+
+  // ── Search ────────────────────────────────────────────────
+  function handleSearch(value) {
+    clearTimeout(searchTimeout);
+    const resultsDiv = document.getElementById("search-results");
+
+    if (!value.trim()) {
+      resultsDiv.classList.remove("visible");
+      resultsDiv.innerHTML = "";
+      return;
+    }
+
+    searchTimeout = setTimeout(async () => {
+      try {
+        const res  = await axios.get(`${API}/search?q=${encodeURIComponent(value)}`);
+        const data = res.data;
+        const all  = [...data.kols, ...data.recommendations];
+
+        if (!all.length) {
+          resultsDiv.innerHTML = '<div class="empty">No results found.</div>';
+          resultsDiv.classList.add("visible");
+          return;
+        }
+
+        resultsDiv.innerHTML = all.map(item => {
+          if (item.type === "kol") {
+            return `
+              <div class="search-result-item" onclick="openKOL('${item.handle}')">
+                <div class="search-result-left">
+                  <div class="search-result-handle">@${item.handle}</div>
+                  <div class="search-result-signal">${item.content_type}</div>
+                </div>
+                <span class="calls-badge">KOL</span>
+              </div>`;
+          } else {
+            return `
+              <div class="search-result-item" onclick="openKOL('${item.handle}')">
+                <div class="search-result-left">
+                  <div class="search-result-handle">@${item.handle} → $${item.ticker}</div>
+                  <div class="search-result-signal">${item.signal_text || "—"}</div>
+                </div>
+                <span class="direction-badge ${item.direction}">${item.direction}</span>
+              </div>`;
+          }
+        }).join("");
+
+        resultsDiv.classList.add("visible");
+      } catch(e) {
+        console.error("Search failed", e);
+      }
+    }, 400);
+  }
+
+  // ── Subscribe ─────────────────────────────────────────────
+  function showSubscribeModal()  { document.getElementById("subscribe-modal").classList.add("visible"); }
+  function hideSubscribeModal()  { document.getElementById("subscribe-modal").classList.remove("visible"); }
+
+  async function submitSubscribe() {
+    const email = document.getElementById("subscribe-email").value.trim();
+    if (!email) return alert("Please enter your email");
+    try {
+      await axios.post(`${API}/subscribe?email=${encodeURIComponent(email)}`);
+      alert("✅ Subscribed! We'll keep you updated.");
+      hideSubscribeModal();
+    } catch(e) {
+      alert("Something went wrong. Please try again.");
+    }
+  }
+
+  // ── Request KOL ───────────────────────────────────────────
+  function showRequestModal()  { document.getElementById("request-modal").classList.add("visible"); }
+  function hideRequestModal()  { document.getElementById("request-modal").classList.remove("visible"); }
+
+  async function submitRequest() {
+    const handle = document.getElementById("request-handle").value.trim().replace("@","");
+    const reason = document.getElementById("request-reason").value.trim();
+    if (!handle) return alert("Please enter a Twitter handle");
+    try {
+      await axios.post(`${API}/request-kol?handle=${encodeURIComponent(handle)}&reason=${encodeURIComponent(reason)}`);
+      alert(`✅ Request for @${handle} submitted! We'll review it soon.`);
+      hideRequestModal();
+    } catch(e) {
+      alert("Something went wrong. Please try again.");
+    }
+  }
+
+  // ── Init ──────────────────────────────────────────────────
+  loadStats();
+  loadLeaderboard(currentPeriod);
+</script>
+</body>
+</html>
