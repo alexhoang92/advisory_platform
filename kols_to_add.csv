@@ -1,0 +1,6 @@
+handle,display_name,content_type,prediction_style
+chamath,Chamath Palihapitiya,venture/growth,implied
+TihoBrkan,Tiho Brkan,macro/charts,explicit
+CitronResearch,Citron Research,short selling,explicit
+StockMKTNewz,Stock Market News,news/flow,implied
+KobeissiLetter,The Kobeissi Letter,macro,explicit
