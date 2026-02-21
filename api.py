@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from db.models import get_session, KOL, KOLScore, Recommendation, RawTweet
 from sqlalchemy import func
+from datetime import datetime, timedelta
 import os
 
 app = FastAPI(title="KOL Tracker API")
@@ -184,6 +185,43 @@ def request_kol(handle: str, reason: str = ""):
     with open("kol_requests.txt", "a") as f:
         f.write(f"{handle} | {reason}\n")
     return {"message": f"Request for @{handle} received. We'll review it soon!"}
+
+
+# ── GET /top-assets ────────────────────────────────────────────
+# Top tickers by recommendation count in the last N days
+@app.get("/top-assets")
+def get_top_assets(days: int = Query(7, ge=1, le=365)):
+    session  = get_session()
+    cutoff   = datetime.utcnow() - timedelta(days=days)
+
+    rows = session.query(
+        Recommendation.ticker,
+        func.count(Recommendation.id).label("total"),
+        func.sum(
+            func.case((Recommendation.direction == "BUY", 1), else_=0)
+        ).label("buy_count"),
+        func.sum(
+            func.case((Recommendation.direction.in_(["SELL", "SHORT"]), 1), else_=0)
+        ).label("sell_count"),
+    ).filter(
+        Recommendation.posted_at >= cutoff
+    ).group_by(
+        Recommendation.ticker
+    ).order_by(
+        func.count(Recommendation.id).desc()
+    ).limit(10).all()
+
+    result = []
+    for row in rows:
+        result.append({
+            "ticker"    : row.ticker,
+            "total"     : row.total,
+            "buy_count" : row.buy_count  or 0,
+            "sell_count": row.sell_count or 0,
+        })
+
+    session.close()
+    return result
 
 
 # ── GET /stats ─────────────────────────────────────────────────

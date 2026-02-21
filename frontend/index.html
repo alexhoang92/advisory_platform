@@ -401,6 +401,92 @@
     }
     .loading { text-align: center; padding: 48px; color: #555; }
     .empty { text-align: center; padding: 32px; color: #555; font-size: 14px; }
+
+    /* ── Two-column main layout ── */
+    .main-content {
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 0 32px 64px;
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+    .main-content .leaderboard {
+      flex: 1 1 0;
+      min-width: 0;
+      max-width: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    /* ── Top Assets Panel ── */
+    .top-assets {
+      width: 320px;
+      flex-shrink: 0;
+    }
+    .asset-item {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+    .asset-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 6px;
+    }
+    .asset-ticker {
+      font-weight: 800;
+      font-size: 16px;
+      color: #00ff88;
+    }
+    .asset-count {
+      font-size: 12px;
+      color: #666;
+    }
+    .asset-badges {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .asset-badge-buy {
+      background: #00331a;
+      color: #00ff88;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .asset-badge-sell {
+      background: #330000;
+      color: #ff4444;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .asset-bar-track {
+      background: #2a2a2a;
+      border-radius: 4px;
+      height: 4px;
+      overflow: hidden;
+    }
+    .asset-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00ff88, #00cc66);
+      border-radius: 4px;
+      transition: width 0.4s ease;
+    }
+
+    @media (max-width: 800px) {
+      .main-content {
+        flex-direction: column;
+        padding: 0 16px 48px;
+      }
+      .top-assets { width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -456,10 +542,21 @@
   <button class="period-btn" onclick="setPeriod('T30D', this)">30 Days</button>
 </div>
 
-<!-- Leaderboard -->
-<div class="leaderboard">
-  <div class="section-title">🏆 Leaderboard</div>
-  <div id="leaderboard-list"><div class="loading">Loading KOLs...</div></div>
+<!-- Main content: leaderboard + top assets -->
+<div class="main-content">
+
+  <!-- Leaderboard -->
+  <div class="leaderboard">
+    <div class="section-title">🏆 Leaderboard</div>
+    <div id="leaderboard-list"><div class="loading">Loading KOLs...</div></div>
+  </div>
+
+  <!-- Top Assets -->
+  <div class="top-assets">
+    <div class="section-title">🔥 Most Predicted Assets <span style="font-size:13px;color:#555;font-weight:400;">(Last 7 Days)</span></div>
+    <div id="top-assets-list"><div class="loading">Loading...</div></div>
+  </div>
+
 </div>
 
 <!-- KOL Detail Modal -->
@@ -704,9 +801,55 @@
     }
   }
 
+  // ── Top Assets ────────────────────────────────────────────
+  async function loadTopAssets() {
+    const list = document.getElementById("top-assets-list");
+    try {
+      const res   = await axios.get(`${API}/top-assets?days=7`);
+      const items = res.data;
+
+      if (!items.length) {
+        list.innerHTML = '<div class="empty">No data yet.</div>';
+        return;
+      }
+
+      const maxTotal = items[0].total;
+
+      list.innerHTML = items.map((item, i) => {
+        const pct      = maxTotal > 0 ? Math.round((item.total / maxTotal) * 100) : 0;
+        const buyLabel = item.buy_count  ? `${item.buy_count} BUY`  : "";
+        const sellLabel= item.sell_count ? `${item.sell_count} SELL` : "";
+        return `
+          <div class="asset-item">
+            <div class="asset-header">
+              <span class="asset-ticker">#${i+1} $${item.ticker}</span>
+              <span class="asset-count">${item.total} prediction${item.total !== 1 ? "s" : ""}</span>
+            </div>
+            <div class="asset-badges">
+              ${buyLabel  ? `<span class="asset-badge-buy">${buyLabel}</span>`   : ""}
+              ${sellLabel ? `<span class="asset-badge-sell">${sellLabel}</span>` : ""}
+            </div>
+            <div class="asset-bar-track">
+              <div class="asset-bar-fill" style="width:${pct}%"></div>
+            </div>
+          </div>`;
+      }).join("");
+    } catch(e) {
+      list.innerHTML = '<div class="empty">Failed to load assets.</div>';
+    }
+  }
+
   // ── Init ──────────────────────────────────────────────────
   loadStats();
   loadLeaderboard(currentPeriod);
+  loadTopAssets();
+
+  // Auto-refresh every 5 minutes
+  setInterval(() => {
+    loadStats();
+    loadLeaderboard(currentPeriod);
+    loadTopAssets();
+  }, 5 * 60 * 1000);
 </script>
 </body>
 </html>
