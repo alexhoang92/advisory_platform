@@ -1,7 +1,9 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from db.models import get_session, KOL, KOLScore, Recommendation, RawTweet
-from sqlalchemy import func
+from sqlalchemy import func, case
 from datetime import datetime, timedelta
 import os
 
@@ -14,6 +16,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve the frontend
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
+
+@app.get("/", include_in_schema=False)
+def serve_frontend():
+    return FileResponse("frontend/index.html")
 
 # ── GET /kols ──────────────────────────────────────────────────
 # Returns leaderboard — all KOLs with their scores
@@ -198,10 +207,10 @@ def get_top_assets(days: int = Query(7, ge=1, le=365)):
         Recommendation.ticker,
         func.count(Recommendation.id).label("total"),
         func.sum(
-            func.case((Recommendation.direction == "BUY", 1), else_=0)
+            case((Recommendation.direction == "BUY", 1), else_=0)
         ).label("buy_count"),
         func.sum(
-            func.case((Recommendation.direction.in_(["SELL", "SHORT"]), 1), else_=0)
+            case((Recommendation.direction.in_(["SELL", "SHORT"]), 1), else_=0)
         ).label("sell_count"),
     ).filter(
         Recommendation.posted_at >= cutoff
