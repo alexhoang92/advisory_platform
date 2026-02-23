@@ -1,11 +1,16 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from db.models import get_session, KOL, KOLScore, Recommendation, RawTweet
+from db.models import get_session, KOL, KOLScore, Recommendation, RawTweet, PriceSnapshot, KOLRequest
 from sqlalchemy import func, case
 from datetime import datetime, timedelta
 import os
+import threading
+import yfinance as yf
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI(title="KOL Tracker API")
 
@@ -23,6 +28,50 @@ app.mount("/static", StaticFiles(directory="frontend"), name="static")
 @app.get("/", include_in_schema=False)
 def serve_frontend():
     return FileResponse("frontend/index.html")
+
+# ── Ticker price cache (expires after 60 minutes) ──────────────
+# Structure: {ticker: {"price": 123.45, "fetched_at": datetime}}
+ticker_price_cache: dict = {}
+
+
+def _refresh_price_cache(tickers: set):
+    """Fetch current prices for tickers not in cache or with expired (>60 min) entries.
+    Never called inside a per-recommendation loop — always batched first."""
+    now_dt = datetime.utcnow()
+    uncached = [
+        t for t in tickers
+        if t not in ticker_price_cache
+        or (now_dt - ticker_price_cache[t]["fetched_at"]).total_seconds() >= 3600
+    ]
+    for ticker in uncached:
+        try:
+            stock = yf.Ticker(ticker)
+            price = stock.fast_info.last_price
+            if price:
+                ticker_price_cache[ticker] = {
+                    "price": round(float(price), 2),
+                    "fetched_at": now_dt,
+                }
+        except Exception:
+            pass
+
+
+def _price_change_and_status(direction: str, price_at_call, current_price):
+    """Compute price_change_pct and call_status from direction + prices."""
+    price_change_pct = None
+    call_status = "pending"
+
+    if price_at_call is not None and current_price is not None and price_at_call > 0:
+        price_change_pct = round(((current_price - price_at_call) / price_at_call) * 100, 1)
+
+    if price_at_call is not None and price_change_pct is not None:
+        if direction in ("BUY", "LONG"):
+            call_status = "correct" if price_change_pct > 0 else "wrong"
+        elif direction in ("SELL", "SHORT"):
+            call_status = "correct" if price_change_pct < 0 else "wrong"
+
+    return price_change_pct, call_status
+
 
 # ── GET /kols ──────────────────────────────────────────────────
 # Returns leaderboard — all KOLs with their scores
@@ -68,9 +117,9 @@ def get_kols(period: str = "T7D"):
 
 
 # ── GET /kols/{handle} ─────────────────────────────────────────
-# Returns single KOL detail with all their recommendations
+# Returns single KOL detail with recommendations and per-call performance
 @app.get("/kols/{handle}")
-def get_kol_detail(handle: str):
+def get_kol_detail(handle: str, period: str = Query("T7D")):
     session = get_session()
 
     kol = session.query(KOL).filter_by(handle=handle).first()
@@ -79,46 +128,80 @@ def get_kol_detail(handle: str):
 
     # Get scores across all periods
     scores = {}
-    for period in ["T1D", "T7D", "T30D"]:
-        score = session.query(KOLScore).filter_by(
-            kol_id=kol.id,
-            period=period
-        ).first()
-        scores[period] = {
+    for p in ["T1D", "T7D", "T30D"]:
+        score = session.query(KOLScore).filter_by(kol_id=kol.id, period=p).first()
+        scores[p] = {
             "total_calls"   : score.total_calls   if score else 0,
             "correct_calls" : score.correct_calls if score else 0,
             "win_rate"      : round(score.win_rate, 1)       if score else 0,
             "avg_return"    : round(score.avg_return_pct, 2) if score else 0,
         }
 
-    # Get recent recommendations
-    recs = session.query(Recommendation)\
-        .filter_by(kol_id=kol.id)\
-        .order_by(Recommendation.posted_at.desc())\
-        .limit(20)\
-        .all()
+    # Filter recommendations by period
+    now = datetime.utcnow()
+    query = session.query(Recommendation).filter_by(kol_id=kol.id)
+    period_days = {"T1D": 1, "T7D": 7, "T30D": 30}
+    if period in period_days:
+        cutoff = now - timedelta(days=period_days[period])
+        query = query.filter(Recommendation.posted_at >= cutoff)
+        recs = query.order_by(Recommendation.posted_at.desc()).all()
+    else:
+        # "all" or any unrecognised value → last 20 regardless of date
+        recs = query.order_by(Recommendation.posted_at.desc()).limit(20).all()
 
+    # Batch-fetch T0 price snapshots for all recs (no N+1)
+    rec_ids = [r.id for r in recs]
+    t0_snapshots: dict = {}
+    if rec_ids:
+        snap_rows = session.query(PriceSnapshot).filter(
+            PriceSnapshot.recommendation_id.in_(rec_ids),
+            PriceSnapshot.snapshot_type == "T0"
+        ).all()
+        for s in snap_rows:
+            t0_snapshots[s.recommendation_id] = s.price
+
+    # Batch-fetch current prices — NEVER inside the rec loop
+    tickers_needing_price = {r.ticker for r in recs if t0_snapshots.get(r.id) is not None}
+    _refresh_price_cache(tickers_needing_price)
+
+    # Build recommendation list with performance data
+    today = now.date()
     rec_list = []
     for r in recs:
+        price_at_call = t0_snapshots.get(r.id)
+        current_price = ticker_price_cache.get(r.ticker, {}).get("price") if price_at_call else None
+        price_change_pct, call_status = _price_change_and_status(
+            r.direction, price_at_call, current_price
+        )
+
+        posted_date = r.posted_at.date() if r.posted_at else None
+        days_since  = (today - posted_date).days if posted_date else None
+
         rec_list.append({
-            "id"          : r.id,
-            "ticker"      : r.ticker,
-            "direction"   : r.direction,
-            "conviction"  : r.conviction,
-            "target_price": r.target_price,
-            "timeframe"   : r.timeframe,
-            "signal_text" : r.signal_text,
-            "posted_at"   : r.posted_at.isoformat() if r.posted_at else None,
+            "id"                 : r.id,
+            "ticker"             : r.ticker,
+            "direction"          : r.direction,
+            "conviction"         : r.conviction,
+            "target_price"       : r.target_price,
+            "timeframe"          : r.timeframe,
+            "signal_text"        : r.signal_text,
+            "posted_at"          : r.posted_at.isoformat() if r.posted_at else None,
+            "posted_at_formatted": r.posted_at.strftime("%b %d, %Y") if r.posted_at else None,
+            "days_since_call"    : days_since,
+            "price_at_call"      : price_at_call,
+            "current_price"      : current_price,
+            "price_change_pct"   : price_change_pct,
+            "call_status"        : call_status,
         })
 
     session.close()
     return {
-        "handle"        : kol.handle,
-        "display_name"  : kol.display_name,
-        "profile_url"   : kol.profile_url,
-        "content_type"  : kol.content_type,
-        "last_crawled"  : kol.last_crawled_at.isoformat() if kol.last_crawled_at else None,
-        "scores"        : scores,
+        "handle"         : kol.handle,
+        "display_name"   : kol.display_name,
+        "profile_url"    : kol.profile_url,
+        "content_type"   : kol.content_type,
+        "last_crawled"   : kol.last_crawled_at.isoformat() if kol.last_crawled_at else None,
+        "scores"         : scores,
         "recommendations": rec_list,
     }
 
@@ -179,21 +262,123 @@ def search(q: str = Query(..., min_length=1)):
 # Save user email for updates
 @app.post("/subscribe")
 def subscribe(email: str):
-    # For MVP — just save to a simple text file
-    # Later replace with Supabase
     with open("subscribers.txt", "a") as f:
         f.write(f"{email}\n")
     return {"message": "Subscribed successfully"}
 
 
 # ── POST /request-kol ──────────────────────────────────────────
-# Let users submit KOL requests
+# Let users submit KOL requests — saves to file AND database
 @app.post("/request-kol")
 def request_kol(handle: str, reason: str = ""):
-    # For MVP — save to a text file for you to review
+    # Keep legacy text file
     with open("kol_requests.txt", "a") as f:
         f.write(f"{handle} | {reason}\n")
+
+    # Also persist to database for admin review
+    session = get_session()
+    req = KOLRequest(handle=handle, reason=reason, status="pending")
+    session.add(req)
+    session.commit()
+    session.close()
+
     return {"message": f"Request for @{handle} received. We'll review it soon!"}
+
+
+# ── GET /admin/pending-requests ────────────────────────────────
+# Returns all pending KOL requests (protected by X-Admin-Key)
+@app.get("/admin/pending-requests")
+def get_pending_requests(x_admin_key: str = Header(None)):
+    admin_key = os.getenv("ADMIN_KEY", "changeme123")
+    if x_admin_key != admin_key:
+        raise HTTPException(status_code=401, detail="Invalid admin key")
+
+    session = get_session()
+    requests = session.query(KOLRequest).filter_by(status="pending").all()
+    result = [
+        {
+            "id"          : r.id,
+            "handle"      : r.handle,
+            "reason"      : r.reason,
+            "requested_at": r.requested_at.isoformat() if r.requested_at else None,
+            "status"      : r.status,
+        }
+        for r in requests
+    ]
+    session.close()
+    return result
+
+
+# ── POST /admin/approve-kol ────────────────────────────────────
+# Approve a KOL request, add to tracking, kick off pipeline
+@app.post("/admin/approve-kol")
+def approve_kol(handle: str, x_admin_key: str = Header(None)):
+    admin_key = os.getenv("ADMIN_KEY", "changeme123")
+    if x_admin_key != admin_key:
+        raise HTTPException(status_code=401, detail="Invalid admin key")
+
+    session = get_session()
+
+    # Mark request as approved (latest request for this handle)
+    req = session.query(KOLRequest).filter_by(handle=handle)\
+        .order_by(KOLRequest.id.desc()).first()
+    request_found = req is not None
+    if req:
+        req.status = "approved"
+
+    # Add to kols table if not already present
+    existing_kol = session.query(KOL).filter_by(handle=handle).first()
+    kol_added = False
+    if not existing_kol:
+        new_kol = KOL(
+            handle       = handle,
+            display_name = handle,
+            profile_url  = f"https://x.com/{handle}",
+            content_type = "stock picks",
+            is_active    = True,
+        )
+        session.add(new_kol)
+        kol_added = True
+    else:
+        existing_kol.is_active = True
+
+    session.commit()
+    session.close()
+
+    # Run full pipeline in background so HTTP request returns immediately
+    def run_pipeline_bg():
+        try:
+            from crawler.apify_scraper import scrape_kol_tweets as _scrape
+            from parser.llm_parser import run_parser as _parse
+            from pricer.yfinance_fetch import fetch_price_snapshots as _price
+            from scorer.score_calculator import calculate_scores as _score
+            from db.models import get_session as _gs, RawTweet as _RT
+
+            print(f"🔄 Pipeline starting for newly approved KOL: @{handle}")
+            _scrape(max_per_run=100)
+
+            while True:
+                s = _gs()
+                remaining = s.query(_RT).filter_by(is_parsed=False, is_retweet=False).count()
+                s.close()
+                if remaining == 0:
+                    break
+                _parse(batch_size=100)
+
+            _price()
+            _score()
+            print(f"✅ Pipeline complete for @{handle}")
+        except Exception as e:
+            print(f"❌ Background pipeline failed for @{handle}: {e}")
+
+    threading.Thread(target=run_pipeline_bg, daemon=True).start()
+
+    return {
+        "handle"          : handle,
+        "kol_added"       : kol_added,
+        "request_approved": request_found,
+        "message"         : f"@{handle} approved and added. Pipeline running in background.",
+    }
 
 
 # ── GET /top-assets ────────────────────────────────────────────
@@ -233,17 +418,101 @@ def get_top_assets(days: int = Query(7, ge=1, le=365)):
     return result
 
 
+# ── GET /asset/{ticker} ────────────────────────────────────────
+# All predictions for a ticker in the last N days, with performance data
+@app.get("/asset/{ticker}")
+def get_asset_detail(ticker: str, days: int = Query(7, ge=1, le=365)):
+    session = get_session()
+    ticker  = ticker.upper()
+    cutoff  = datetime.utcnow() - timedelta(days=days)
+
+    recs = session.query(Recommendation).filter(
+        Recommendation.ticker   == ticker,
+        Recommendation.posted_at >= cutoff
+    ).order_by(Recommendation.posted_at.desc()).all()
+
+    if not recs:
+        session.close()
+        return {
+            "ticker": ticker, "days": days,
+            "total": 0, "buy_count": 0, "sell_count": 0,
+            "predictions": [],
+        }
+
+    # Batch-fetch T0 price snapshots
+    rec_ids = [r.id for r in recs]
+    t0_snapshots: dict = {}
+    snap_rows = session.query(PriceSnapshot).filter(
+        PriceSnapshot.recommendation_id.in_(rec_ids),
+        PriceSnapshot.snapshot_type == "T0"
+    ).all()
+    for s in snap_rows:
+        t0_snapshots[s.recommendation_id] = s.price
+
+    # Refresh cache for this single ticker (one yfinance call, not per-rec)
+    _refresh_price_cache({ticker})
+    current_price = ticker_price_cache.get(ticker, {}).get("price")
+
+    # Batch-load KOL handles
+    kol_ids = list({r.kol_id for r in recs})
+    kol_map = {k.id: k for k in session.query(KOL).filter(KOL.id.in_(kol_ids)).all()}
+
+    today      = datetime.utcnow().date()
+    buy_count  = 0
+    sell_count = 0
+    predictions = []
+
+    for r in recs:
+        kol = kol_map.get(r.kol_id)
+        price_at_call = t0_snapshots.get(r.id)
+        curr_price    = current_price if price_at_call else None
+
+        price_change_pct, call_status = _price_change_and_status(
+            r.direction, price_at_call, curr_price
+        )
+
+        if r.direction in ("BUY", "LONG"):
+            buy_count += 1
+        elif r.direction in ("SELL", "SHORT"):
+            sell_count += 1
+
+        posted_date = r.posted_at.date() if r.posted_at else None
+        days_since  = (today - posted_date).days if posted_date else None
+
+        predictions.append({
+            "kol_handle"         : kol.handle if kol else "unknown",
+            "direction"          : r.direction,
+            "conviction"         : r.conviction,
+            "posted_at_formatted": r.posted_at.strftime("%b %d, %Y") if r.posted_at else None,
+            "days_since_call"    : days_since,
+            "price_at_call"      : price_at_call,
+            "price_change_pct"   : price_change_pct,
+            "call_status"        : call_status,
+            "signal_text"        : r.signal_text,
+        })
+
+    session.close()
+    return {
+        "ticker"     : ticker,
+        "days"       : days,
+        "total"      : len(predictions),
+        "buy_count"  : buy_count,
+        "sell_count" : sell_count,
+        "predictions": predictions,
+    }
+
+
 # ── GET /stats ─────────────────────────────────────────────────
 # Quick platform stats for homepage
 @app.get("/stats")
 def get_stats():
-    session    = get_session()
-    kol_count  = session.query(KOL).filter_by(is_active=True).count()
-    rec_count  = session.query(Recommendation).count()
-    tweet_count= session.query(RawTweet).count()
+    session     = get_session()
+    kol_count   = session.query(KOL).filter_by(is_active=True).count()
+    rec_count   = session.query(Recommendation).count()
+    tweet_count = session.query(RawTweet).count()
     session.close()
     return {
-        "kols_tracked"      : kol_count,
-        "recommendations"   : rec_count,
-        "tweets_analyzed"   : tweet_count,
+        "kols_tracked"   : kol_count,
+        "recommendations": rec_count,
+        "tweets_analyzed": tweet_count,
     }

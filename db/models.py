@@ -84,6 +84,16 @@ class KOLScore(Base):
     avg_return_pct   = Column(Float, default=0.0)
     score_updated_at = Column(DateTime, default=datetime.utcnow)
 
+# ── Table 6: KOL Requests ──────────────────────────────────────
+class KOLRequest(Base):
+    __tablename__ = "kol_requests"
+
+    id           = Column(Integer, primary_key=True, autoincrement=True)
+    handle       = Column(String(100), nullable=False)
+    reason       = Column(Text)
+    requested_at = Column(DateTime, default=datetime.utcnow)
+    status       = Column(String(20), default="pending")  # pending / approved / rejected
+
 # ── Database connection helpers ────────────────────────────────
 def get_engine():
     db_url = os.getenv("DATABASE_URL", "sqlite:///kol_tracker.db")
