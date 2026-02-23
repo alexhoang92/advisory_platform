@@ -4,7 +4,7 @@ import json
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from anthropic import Anthropic
+from anthropic import Anthropic, AuthenticationError, APIConnectionError, RateLimitError, APIStatusError
 from dotenv import load_dotenv
 from datetime import datetime
 from db.models import get_session, RawTweet, Recommendation, KOL
@@ -138,6 +138,11 @@ def run_parser(batch_size: int = 50):
             # Only save if Claude found a real recommendation
             if result.get("has_recommendation") and result.get("ticker"):
 
+                # Duplicate guard: skip if rec already exists for this tweet
+                existing = session.query(Recommendation).filter_by(tweet_id=tweet.id).first()
+                if existing:
+                    continue
+
                 rec = Recommendation(
                     tweet_id    = tweet.id,
                     kol_id      = tweet.kol_id,
@@ -159,10 +164,17 @@ def run_parser(batch_size: int = 50):
                       f"[{result.get('conviction','?')} conviction] "
                       f"— \"{tweet.text[:60]}...\"")
 
+        except (AuthenticationError, APIConnectionError, RateLimitError, APIStatusError) as e:
+            # API-level errors: don't mark tweets as parsed — allow retry after fix
+            print(f"  ❌ API error (batch aborted): {e}")
+            session.commit()
+            session.close()
+            raise
+
         except Exception as e:
             errors += 1
             print(f"  ⚠️  Parse error on tweet {tweet.id}: {e}")
-            tweet.is_parsed = True  # Mark as parsed to avoid retrying bad tweets
+            tweet.is_parsed = True  # Mark as parsed to avoid retrying malformed tweets
             continue
 
     session.commit()
