@@ -1,6 +1,41 @@
 handle,display_name,content_type,prediction_style
-chamath,Chamath Palihapitiya,venture/growth,implied
-TihoBrkan,Tiho Brkan,macro/charts,explicit
-CitronResearch,Citron Research,short selling,explicit
-StockMKTNewz,Stock Market News,news/flow,implied
-KobeissiLetter,The Kobeissi Letter,macro,explicit
+elerianm,Mohamed El-Erian,macro,implied
+hmeisler,Helene Meisler,technical analysis,explicit
+MacroAlf,Alfonso Peccatiello,macro/rates,implied
+zerohedge,ZeroHedge,macro/news,implied
+LizAnnSonders,Liz Ann Sonders,macro,implied
+reformedbroker,Josh Brown,market commentary,implied
+ukarlewitz,Urban Carmel,technical analysis,implied
+herbgreenberg,Herb Greenberg,short selling,implied
+LynAldenContact,Lyn Alden,macro,implied
+GeorgeGammon,George Gammon,macro,implied
+muddywatersre,Muddy Waters Research,short selling,explicit
+TaviCosta,Tavi Costa,macro/commodities,implied
+Qullamaggie,Kristjan Kullamagi,swing trading,explicit
+jasongoepfert,Jason Goepfert,sentiment analysis,explicit
+bespokeinvest,Bespoke Investment Group,market research,explicit
+IBDinvestors,Investor's Business Daily,growth stocks,explicit
+biancoresearch,Jim Bianco,macro/rates,implied
+BillAckman,Bill Ackman,activist investing,implied
+DanielSLoeb1,Dan Loeb,activist investing,implied
+Convertbond,Larry McDonald,macro/credit,implied
+leadlagreport,Michael Gayed,ETF rotation,explicit
+LanceRoberts,Lance Roberts,technical analysis,implied
+RaoulGMI,Raoul Pal,macro/crypto,implied
+PeterSchiff,Peter Schiff,macro/gold,explicit
+TruthGundlach,Jeff Gundlach,macro/rates,implied
+Ritholtz,Barry Ritholtz,market commentary,implied
+EricBalchunas,Eric Balchunas,ETFs,implied
+DiMartinoBooth,Danielle DiMartino Booth,macro/Fed policy,implied
+SamRo,Sam Ro,equity markets,implied
+allstarcharts,JC Parets,technical analysis,explicit
+fundstrat,Tom Lee,growth stocks,explicit
+StocktonKatie,Katie Stockton,technical analysis,explicit
+bluechipdaily,Larry Tentarelli,technical analysis,explicit
+CiovaccoCapital,Chris Ciovacco,technical analysis,implied
+DayTradeWarrior,Ross Cameron,day trading,explicit
+stoolpresidente,Dave Portnoy,day trading,explicit
+michaeljburry,Michael Burry,value investing,implied
+RealVision,Real Vision Finance,macro,implied
+ryancohen,Ryan Cohen,activist investing,implied
+carlquintanilla,Carl Quintanilla,financial news,implied
