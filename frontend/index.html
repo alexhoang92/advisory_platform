@@ -480,6 +480,57 @@
       transition: width 0.4s ease;
     }
 
+    /* ── Modal period selector ── */
+    .modal-period-selector {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .modal-period-btn {
+      padding: 4px 14px;
+      border-radius: 20px;
+      border: 1px solid #2a2a2a;
+      background: transparent;
+      color: #888;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .modal-period-btn.active {
+      background: #00ff88;
+      color: #000;
+      border-color: #00ff88;
+      font-weight: 600;
+    }
+
+    /* ── Per-call performance fields ── */
+    .rec-date {
+      font-size: 11px;
+      color: #555;
+      margin-top: 4px;
+    }
+    .price-change {
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .status-badge {
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .status-correct { background: #00331a; color: #00ff88; }
+    .status-wrong   { background: #330000; color: #ff4444; }
+    .status-pending { background: #2a2a2a; color: #888; }
+
+    /* ── Clickable asset items ── */
+    .asset-item {
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .asset-item:hover { border-color: #00ff88; }
+
     @media (max-width: 800px) {
       .main-content {
         flex-direction: column;
@@ -564,6 +615,11 @@
   <div class="modal" id="kol-modal-content"></div>
 </div>
 
+<!-- Asset Detail Modal -->
+<div class="modal-overlay" id="asset-modal" onclick="closeAssetModal(event)">
+  <div class="modal" id="asset-modal-content"></div>
+</div>
+
 <!-- Subscribe Modal -->
 <div class="subscribe-modal" id="subscribe-modal">
   <div class="subscribe-box">
@@ -593,6 +649,7 @@
 <script>
   const API = "";  // served from same origin — no URL needed
   let currentPeriod = "T7D";
+  let currentAssetDays = 7;
   let searchTimeout = null;
 
   // ── Load stats ────────────────────────────────────────────
@@ -662,17 +719,22 @@
     document.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     loadLeaderboard(period);
+    // Sync top-assets panel to the same time window
+    const daysMap = {"T1D": 1, "T7D": 7, "T30D": 30};
+    loadTopAssets(daysMap[period] || 7);
   }
 
   // ── Open KOL detail modal ─────────────────────────────────
-  async function openKOL(handle) {
+  async function openKOL(handle, period) {
+    if (!period) period = currentPeriod;  // default to homepage filter
     const overlay = document.getElementById("kol-modal");
     const content = document.getElementById("kol-modal-content");
     content.innerHTML = '<div class="loading">Loading...</div>';
     overlay.classList.add("visible");
 
     try {
-      const res = await axios.get(`${API}/kols/${handle}`);
+      const periodParam = (period === "all") ? "" : `?period=${period}`;
+      const res = await axios.get(`${API}/kols/${handle}${periodParam}`);
       const k   = res.data;
 
       const scoresHtml = ["T1D","T7D","T30D"].map(p => {
@@ -685,24 +747,65 @@
           </div>`;
       }).join("");
 
+      // Period selector pills
+      const periodSelectorHtml = `
+        <div class="modal-period-selector">
+          ${[{key:"all",label:"All"},{key:"T1D",label:"1D"},{key:"T7D",label:"7D"},{key:"T30D",label:"30D"}].map(p => `
+            <button class="modal-period-btn ${period === p.key ? "active" : ""}"
+                    onclick="openKOL('${handle}', '${p.key}')">${p.label}</button>`).join("")}
+        </div>`;
+
       const recsHtml = k.recommendations.length
-        ? k.recommendations.map(r => `
-            <div class="rec-item">
-              <div>
-                <div class="rec-ticker">$${r.ticker}</div>
-                <div class="rec-signal">${r.signal_text || "—"}</div>
-              </div>
-              <span class="direction-badge ${r.direction}">${r.direction}</span>
-            </div>`).join("")
-        : '<div class="empty">No recommendations found yet.</div>';
+        ? k.recommendations.map(r => {
+            const dirClass = ["BUY","LONG"].includes(r.direction) ? "BUY"
+                           : ["SELL","SHORT"].includes(r.direction) ? "SELL"
+                           : r.direction;
+            const sig = r.signal_text
+              ? (r.signal_text.length > 80 ? r.signal_text.slice(0,80) + "…" : r.signal_text)
+              : "—";
+            const dateStr = r.posted_at_formatted
+              ? `${r.posted_at_formatted}${r.days_since_call != null ? " · " + r.days_since_call + " days ago" : ""}`
+              : "";
+
+            let priceLine = `<span style="color:#555">—</span>`;
+            if (r.price_change_pct != null) {
+              const col  = r.price_change_pct >= 0 ? "#00ff88" : "#ff4444";
+              const sign = r.price_change_pct >= 0 ? "+" : "";
+              priceLine  = `<span class="price-change" style="color:${col}">${sign}${r.price_change_pct}%</span>`;
+            }
+
+            const statusHtml = r.call_status === "correct"
+              ? `<span class="status-badge status-correct">✅ Correct</span>`
+              : r.call_status === "wrong"
+                ? `<span class="status-badge status-wrong">❌ Wrong</span>`
+                : `<span class="status-badge status-pending">⏳ Pending</span>`;
+
+            return `
+              <div class="rec-item">
+                <div>
+                  <div class="rec-ticker">$${r.ticker}</div>
+                  <div class="rec-signal">${sig}</div>
+                  ${dateStr ? `<div class="rec-date">${dateStr}</div>` : ""}
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
+                  <span class="direction-badge ${dirClass}">${r.direction}</span>
+                  ${priceLine}
+                  ${statusHtml}
+                </div>
+              </div>`;
+          }).join("")
+        : '<div class="empty">No recommendations found for this period.</div>';
 
       content.innerHTML = `
         <div class="modal-header">
-          <div class="modal-handle">@${k.handle}</div>
+          <div>
+            <div class="modal-handle">@${k.handle}</div>
+            ${periodSelectorHtml}
+          </div>
           <button class="modal-close" onclick="document.getElementById('kol-modal').classList.remove('visible')">✕</button>
         </div>
         <div class="score-grid">${scoresHtml}</div>
-        <div class="recs-title">Recent Recommendations</div>
+        <div class="recs-title">Recommendations</div>
         ${recsHtml}`;
 
     } catch(e) {
@@ -714,6 +817,18 @@
     if (e.target.id === "kol-modal") {
       document.getElementById("kol-modal").classList.remove("visible");
     }
+  }
+
+  function closeAssetModal(e) {
+    if (e.target.id === "asset-modal") {
+      document.getElementById("asset-modal").classList.remove("visible");
+    }
+  }
+
+  // Close asset modal, then open KOL detail modal
+  function closeAndOpenKOL(handle) {
+    document.getElementById("asset-modal").classList.remove("visible");
+    openKOL(handle);
   }
 
   // ── Search ────────────────────────────────────────────────
@@ -802,10 +917,19 @@
   }
 
   // ── Top Assets ────────────────────────────────────────────
-  async function loadTopAssets() {
+  async function loadTopAssets(days = 7) {
+    currentAssetDays = days;
     const list = document.getElementById("top-assets-list");
+
+    // Update panel title to match selected period
+    const dayLabel = days === 1 ? "1 Day" : `${days} Days`;
+    const titleEl  = document.querySelector(".top-assets .section-title");
+    if (titleEl) {
+      titleEl.innerHTML = `🔥 Most Predicted Assets <span style="font-size:13px;color:#555;font-weight:400;">(Last ${dayLabel})</span>`;
+    }
+
     try {
-      const res   = await axios.get(`${API}/top-assets?days=7`);
+      const res   = await axios.get(`${API}/top-assets?days=${days}`);
       const items = res.data;
 
       if (!items.length) {
@@ -816,11 +940,11 @@
       const maxTotal = items[0].total;
 
       list.innerHTML = items.map((item, i) => {
-        const pct      = maxTotal > 0 ? Math.round((item.total / maxTotal) * 100) : 0;
-        const buyLabel = item.buy_count  ? `${item.buy_count} BUY`  : "";
-        const sellLabel= item.sell_count ? `${item.sell_count} SELL` : "";
+        const pct       = maxTotal > 0 ? Math.round((item.total / maxTotal) * 100) : 0;
+        const buyLabel  = item.buy_count  ? `${item.buy_count} BUY`  : "";
+        const sellLabel = item.sell_count ? `${item.sell_count} SELL` : "";
         return `
-          <div class="asset-item">
+          <div class="asset-item" onclick="openAsset('${item.ticker}', ${days})">
             <div class="asset-header">
               <span class="asset-ticker">#${i+1} $${item.ticker}</span>
               <span class="asset-count">${item.total} prediction${item.total !== 1 ? "s" : ""}</span>
@@ -839,16 +963,95 @@
     }
   }
 
+  // ── Asset Detail Modal ────────────────────────────────────
+  async function openAsset(ticker, days) {
+    days = days || currentAssetDays;
+    const overlay = document.getElementById("asset-modal");
+    const content = document.getElementById("asset-modal-content");
+    content.innerHTML = '<div class="loading">Loading...</div>';
+    overlay.classList.add("visible");
+
+    try {
+      const res  = await axios.get(`${API}/asset/${ticker}?days=${days}`);
+      const data = res.data;
+      const dayLabel = days === 1 ? "1 Day" : `${days} Days`;
+
+      if (!data.predictions.length) {
+        content.innerHTML = `
+          <div class="modal-header">
+            <div class="modal-handle">$${ticker} — Last ${dayLabel}</div>
+            <button class="modal-close" onclick="document.getElementById('asset-modal').classList.remove('visible')">✕</button>
+          </div>
+          <div class="empty">No predictions found for this period.</div>`;
+        return;
+      }
+
+      const predsHtml = data.predictions.map(p => {
+        const dirClass = ["BUY","LONG"].includes(p.direction) ? "BUY"
+                       : ["SELL","SHORT"].includes(p.direction) ? "SELL"
+                       : p.direction;
+        const sig = p.signal_text
+          ? (p.signal_text.length > 80 ? p.signal_text.slice(0,80) + "…" : p.signal_text)
+          : "—";
+        const dateStr = p.posted_at_formatted
+          ? `${p.posted_at_formatted}${p.days_since_call != null ? " · " + p.days_since_call + " days ago" : ""}`
+          : "";
+
+        let priceLine = `<span style="color:#555">—</span>`;
+        if (p.price_change_pct != null) {
+          const col  = p.price_change_pct >= 0 ? "#00ff88" : "#ff4444";
+          const sign = p.price_change_pct >= 0 ? "+" : "";
+          priceLine  = `<span class="price-change" style="color:${col}">${sign}${p.price_change_pct}%</span>`;
+        }
+
+        const statusHtml = p.call_status === "correct"
+          ? `<span class="status-badge status-correct">✅ Correct</span>`
+          : p.call_status === "wrong"
+            ? `<span class="status-badge status-wrong">❌ Wrong</span>`
+            : `<span class="status-badge status-pending">⏳ Pending</span>`;
+
+        return `
+          <div class="rec-item">
+            <div>
+              <div style="font-weight:700;color:#00ff88;cursor:pointer;font-size:14px;"
+                   onclick="closeAndOpenKOL('${p.kol_handle}')">@${p.kol_handle}</div>
+              <div class="rec-signal">${sig}</div>
+              ${dateStr ? `<div class="rec-date">${dateStr}</div>` : ""}
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
+              <span class="direction-badge ${dirClass}">${p.direction}</span>
+              ${priceLine}
+              ${statusHtml}
+            </div>
+          </div>`;
+      }).join("");
+
+      content.innerHTML = `
+        <div class="modal-header">
+          <div>
+            <div class="modal-handle">$${ticker} Predictions — Last ${dayLabel}</div>
+            <div style="font-size:13px;color:#888;margin-top:4px;">${data.total} predictions · ${data.buy_count} BUY · ${data.sell_count} SELL</div>
+          </div>
+          <button class="modal-close" onclick="document.getElementById('asset-modal').classList.remove('visible')">✕</button>
+        </div>
+        <div class="recs-title">All Predictions</div>
+        ${predsHtml}`;
+
+    } catch(e) {
+      content.innerHTML = '<div class="empty">Failed to load asset details.</div>';
+    }
+  }
+
   // ── Init ──────────────────────────────────────────────────
   loadStats();
   loadLeaderboard(currentPeriod);
-  loadTopAssets();
+  loadTopAssets(7);
 
   // Auto-refresh every 5 minutes
   setInterval(() => {
     loadStats();
     loadLeaderboard(currentPeriod);
-    loadTopAssets();
+    loadTopAssets(currentAssetDays);
   }, 5 * 60 * 1000);
 </script>
 </body>
