@@ -70,11 +70,17 @@ def calculate_scores():
                     snapshot_type="T0"
                 ).first()
 
-                # Get Tx price (outcome at this period's horizon)
-                tx = session.query(PriceSnapshot).filter_by(
-                    recommendation_id=rec.id,
-                    snapshot_type=period
-                ).first()
+                # Use best available outcome snapshot (T1D → T7D → T30D).
+                # Recent predictions won't have T7D/T30D data yet, but can
+                # still be evaluated using T1D if it exists.
+                tx = None
+                for snap_type in ["T1D", "T7D", "T30D"]:
+                    tx = session.query(PriceSnapshot).filter_by(
+                        recommendation_id=rec.id,
+                        snapshot_type=snap_type
+                    ).first()
+                    if tx:
+                        break
 
                 # Win rate only counts evaluated predictions (both snapshots exist)
                 if not t0 or not tx:
