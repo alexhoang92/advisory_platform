@@ -61,7 +61,7 @@ def parse_with_claude(tweet_text: str) -> dict:
     """
     client = Anthropic()
 
-    user_prompt = f"""Analyze this tweet from a stock market influencer and extract any trading recommendation.
+    user_prompt = f"""Analyze this tweet from a stock market influencer and extract any trading recommendation or directional position statement.
 
 Tweet: "{tweet_text}"
 
@@ -77,10 +77,20 @@ Respond with this exact JSON structure:
 }}
 
 Rules:
-- If no clear stock recommendation exists, set has_recommendation to false and everything else to null
 - ticker must be the stock symbol only (e.g. NVDA not Nvidia)
-- Only extract recommendations for individual stocks, not general market commentary
-- Be conservative — only mark has_recommendation true if there is a clear actionable signal"""
+- Only extract recommendations for individual stocks or ETFs, not general market index commentary
+- Set has_recommendation TRUE for any of these patterns:
+  * Explicit directional calls: "buying X", "selling X", "shorting X", "long X", "short X"
+  * Position updates (these ARE actionable): "added to position", "added to my X", "remain long", "staying long", "remain short", "staying short", "trimmed X", "exiting X"
+  * Conviction statements: "love X here", "X is a strong buy", "X looks like a short"
+  * Price targets with a ticker: "$X target $200", "X to $50"
+  * Options positioning: "buying calls on X", "buying puts on X"
+- Direction mapping:
+  * BUY: buy, long, bullish, added, accumulating, loading, remains long, love this, strong buy
+  * SELL: sell, exit, trimmed, reducing, take profit
+  * SHORT: short, bearish, put, remains short
+- Set has_recommendation FALSE for: pure news, earnings reports with no directional call, general market commentary without a specific ticker call, price observations with no direction
+- If a tweet mentions multiple tickers with the same direction, pick the most prominently featured one"""
 
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",
