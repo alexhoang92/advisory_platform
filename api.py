@@ -119,7 +119,7 @@ def get_kols(period: str = "T7D"):
 # ── GET /kols/{handle} ─────────────────────────────────────────
 # Returns single KOL detail with recommendations and per-call performance
 @app.get("/kols/{handle}")
-def get_kol_detail(handle: str, period: str = Query("T7D")):
+def get_kol_detail(handle: str, period: str = Query("all")):
     session = get_session()
 
     kol = session.query(KOL).filter_by(handle=handle).first()

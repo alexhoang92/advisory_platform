@@ -41,6 +41,10 @@ def calculate_scores():
 
     print("🏆 Calculating KOL accuracy scores...\n")
 
+    # Wipe all existing scores so stale rows (e.g. from old period logic) don't persist
+    session.query(KOLScore).delete()
+    session.commit()
+
     all_scores = []
 
     for kol in kols:

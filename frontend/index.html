@@ -726,14 +726,14 @@
 
   // ── Open KOL detail modal ─────────────────────────────────
   async function openKOL(handle, period) {
-    if (!period) period = currentPeriod;  // default to homepage filter
+    if (!period) period = "all";  // default to all-time view so detail is never empty
     const overlay = document.getElementById("kol-modal");
     const content = document.getElementById("kol-modal-content");
     content.innerHTML = '<div class="loading">Loading...</div>';
     overlay.classList.add("visible");
 
     try {
-      const periodParam = (period === "all") ? "" : `?period=${period}`;
+      const periodParam = `?period=${period}`;
       const res = await axios.get(`${API}/kols/${handle}${periodParam}`);
       const k   = res.data;
 
