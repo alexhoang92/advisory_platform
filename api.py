@@ -137,16 +137,19 @@ def get_kol_detail(handle: str, period: str = Query("T7D")):
             "avg_return"    : round(score.avg_return_pct, 2) if score else 0,
         }
 
-    # Show all recommendations regardless of period — the period param only
-    # controls which score tab is highlighted in the header.
-    # (Filtering by posted_at would hide calls that have been scored but fall
-    # outside the rolling window, causing the "0 calls" mismatch.)
+    # Filter predictions by posting-date window matching the period.
+    # This ensures the list count matches kol_scores.total_calls, and that
+    # 30D shows more predictions than 7D which shows more than 1D.
     now = datetime.utcnow()
-    recs = session.query(Recommendation)\
-        .filter_by(kol_id=kol.id)\
-        .order_by(Recommendation.posted_at.desc())\
-        .limit(50)\
-        .all()
+    period_days = {"T1D": 1, "T7D": 7, "T30D": 30}
+    query = session.query(Recommendation).filter_by(kol_id=kol.id)
+    if period in period_days:
+        cutoff = now - timedelta(days=period_days[period])
+        recs = query.filter(Recommendation.posted_at >= cutoff)\
+                    .order_by(Recommendation.posted_at.desc()).all()
+    else:
+        # "all" — show last 50 regardless of date
+        recs = query.order_by(Recommendation.posted_at.desc()).limit(50).all()
 
     # Batch-fetch T0 price snapshots for all recs (no N+1)
     rec_ids = [r.id for r in recs]

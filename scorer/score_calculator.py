@@ -2,8 +2,11 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from db.models import get_session, Recommendation, PriceSnapshot, KOLScore, KOL
+
+# Period = lookback window: only score predictions made in the last N days
+PERIOD_DAYS = {"T1D": 1, "T7D": 7, "T30D": 30}
 
 def is_correct_call(direction: str, price_t0: float, price_tx: float) -> bool:
     """
@@ -47,30 +50,35 @@ def calculate_scores():
             continue
 
         for period in periods:
-            total_calls   = 0
+            # Only consider predictions made within this period's lookback window
+            cutoff      = datetime.utcnow() - timedelta(days=PERIOD_DAYS[period])
+            window_recs = [r for r in recs if r.posted_at and r.posted_at >= cutoff]
+
+            total_calls   = len(window_recs)   # all predictions in window (incl. pending)
             correct_calls = 0
             total_return  = 0.0
+            evaluated     = 0
 
-            for rec in recs:
+            for rec in window_recs:
                 # Get T0 price (baseline)
                 t0 = session.query(PriceSnapshot).filter_by(
                     recommendation_id=rec.id,
                     snapshot_type="T0"
                 ).first()
 
-                # Get Tx price (outcome)
+                # Get Tx price (outcome at this period's horizon)
                 tx = session.query(PriceSnapshot).filter_by(
                     recommendation_id=rec.id,
                     snapshot_type=period
                 ).first()
 
-                # Can only score if both prices exist
+                # Win rate only counts evaluated predictions (both snapshots exist)
                 if not t0 or not tx:
                     continue
 
-                total_calls += 1
-                correct      = is_correct_call(rec.direction, t0.price, tx.price)
-                ret          = get_return_pct(rec.direction, t0.price, tx.price)
+                evaluated    += 1
+                correct       = is_correct_call(rec.direction, t0.price, tx.price)
+                ret           = get_return_pct(rec.direction, t0.price, tx.price)
 
                 if correct:
                     correct_calls += 1
@@ -79,8 +87,8 @@ def calculate_scores():
             if total_calls == 0:
                 continue
 
-            win_rate       = correct_calls / total_calls * 100
-            avg_return     = total_return / total_calls
+            win_rate   = correct_calls / evaluated * 100 if evaluated > 0 else 0
+            avg_return = total_return  / evaluated       if evaluated > 0 else 0
 
             # Save or update score in database
             existing = session.query(KOLScore).filter_by(

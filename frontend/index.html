@@ -624,7 +624,7 @@
 <div class="subscribe-modal" id="subscribe-modal">
   <div class="subscribe-box">
     <h2>📬 Stay Updated</h2>
-    <p>Get notified when top KOLs make new stock calls.</p>
+    <p>Get notified when top KOLs make new stock predictions.</p>
     <input class="subscribe-input" id="subscribe-email"
            type="email" placeholder="your@email.com" />
     <button class="btn-subscribe" onclick="submitSubscribe()">Subscribe for Free</button>
@@ -703,7 +703,7 @@
                 <div class="metric-value ${retClass}">${retStr}</div>
                 <div class="metric-label">Avg Return</div>
               </div>
-              <div class="calls-badge">${calls} calls</div>
+              <div class="calls-badge">${calls} predictions</div>
             </div>
           </div>`;
       }).join("");
@@ -743,7 +743,7 @@
           <div class="score-card">
             <div class="score-period">${p}</div>
             <div class="score-winrate">${s.win_rate}%</div>
-            <div class="score-calls">${s.total_calls} calls</div>
+            <div class="score-calls">${s.total_calls} predictions</div>
           </div>`;
       }).join("");
 
@@ -794,7 +794,7 @@
                 </div>
               </div>`;
           }).join("")
-        : '<div class="empty">No recommendations found for this period.</div>';
+        : '<div class="empty">No predictions found for this period.</div>';
 
       content.innerHTML = `
         <div class="modal-header">
@@ -805,7 +805,7 @@
           <button class="modal-close" onclick="document.getElementById('kol-modal').classList.remove('visible')">✕</button>
         </div>
         <div class="score-grid">${scoresHtml}</div>
-        <div class="recs-title">Recommendations</div>
+        <div class="recs-title">Predictions</div>
         ${recsHtml}`;
 
     } catch(e) {
