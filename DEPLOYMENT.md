@@ -56,12 +56,9 @@ Before deploying to Vercel, update the API constant in the frontend:
 1. Open `frontend/index.html`
 2. Find this line near the bottom of the file:
    ```js
-   const API = "https://YOUR-APP-NAME.up.railway.app";
+   const API = "https://web-production-94c5.up.railway.app";
    ```
-3. Replace it with your actual Railway URL:
-   ```js
-   const API = "https://kol-tracker-production-xxxx.up.railway.app";
-   ```
+3. ✅ Already updated to the live Railway URL.
 4. Save the file and commit + push the change to GitHub:
    ```bash
    git add frontend/index.html
