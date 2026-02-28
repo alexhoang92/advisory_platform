@@ -94,6 +94,23 @@ class KOLRequest(Base):
     requested_at = Column(DateTime, default=datetime.utcnow)
     status       = Column(String(20), default="pending")  # pending / approved / rejected
 
+# ── Table 7: Subscribers ───────────────────────────────────────
+class Subscriber(Base):
+    __tablename__ = "subscribers"
+
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    email         = Column(String(255), unique=True, nullable=False)
+    subscribed_at = Column(DateTime, default=datetime.utcnow)
+    is_active     = Column(Boolean, default=True)
+
+# ── Table 8: Waitlist ──────────────────────────────────────────
+class Waitlist(Base):
+    __tablename__ = "waitlist"
+
+    id        = Column(Integer, primary_key=True, autoincrement=True)
+    email     = Column(String(255), unique=True, nullable=False)
+    joined_at = Column(DateTime, default=datetime.utcnow)
+
 # ── Database connection helpers ────────────────────────────────
 def get_engine():
     db_url = os.getenv("DATABASE_URL", "sqlite:///kol_tracker.db")

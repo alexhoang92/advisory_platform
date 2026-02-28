@@ -2,15 +2,25 @@ from fastapi import FastAPI, HTTPException, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from db.models import get_session, KOL, KOLScore, Recommendation, RawTweet, PriceSnapshot, KOLRequest
+from db.models import get_session, KOL, KOLScore, Recommendation, RawTweet, PriceSnapshot, KOLRequest, Subscriber, Waitlist
 from sqlalchemy import func, case
 from datetime import datetime, timedelta
 import os
 import threading
 import yfinance as yf
 from dotenv import load_dotenv
+import resend
 
 load_dotenv()
+
+DEPLOYED_URL = "https://web-production-94c5.up.railway.app"
+OWNER_EMAIL  = os.getenv("OWNER_EMAIL")
+
+_resend_key = os.getenv("RESEND_API_KEY")
+if _resend_key:
+    resend.api_key = _resend_key
+else:
+    print("⚠️  RESEND_API_KEY not set — email sending disabled")
 
 app = FastAPI(title="KOL Tracker API")
 
@@ -28,6 +38,22 @@ app.mount("/static", StaticFiles(directory="frontend"), name="static")
 @app.get("/", include_in_schema=False)
 def serve_frontend():
     return FileResponse("frontend/index.html")
+
+# ── Email helper ───────────────────────────────────────────────
+def _send_email(to: str, subject: str, html: str):
+    """Send email via Resend. No-op if RESEND_API_KEY is missing."""
+    if not _resend_key:
+        return
+    try:
+        resend.Emails.send({
+            "from"   : "KOL Tracker <onboarding@resend.dev>",
+            "to"     : [to],
+            "subject": subject,
+            "html"   : html,
+        })
+    except Exception as e:
+        print(f"⚠️  Email send failed ({to}): {e}")
+
 
 # ── Ticker price cache (expires after 60 minutes) ──────────────
 # Structure: {ticker: {"price": 123.45, "fetched_at": datetime}}
@@ -261,12 +287,77 @@ def search(q: str = Query(..., min_length=1)):
 
 
 # ── POST /subscribe ────────────────────────────────────────────
-# Save user email for updates
 @app.post("/subscribe")
 def subscribe(email: str):
-    with open("subscribers.txt", "a") as f:
-        f.write(f"{email}\n")
-    return {"message": "Subscribed successfully"}
+    session = get_session()
+    existing = session.query(Subscriber).filter_by(email=email).first()
+    if existing:
+        session.close()
+        return {"message": "Already subscribed!"}
+
+    sub = Subscriber(email=email)
+    session.add(sub)
+    session.commit()
+    session.close()
+
+    # Welcome email to subscriber
+    _send_email(
+        to      = email,
+        subject = "You're on the list 📈",
+        html    = f"""
+<h2>Welcome to KOL Tracker!</h2>
+<p>You're now tracking who actually calls it right on Stock Twitter.</p>
+<p>We'll send you weekly leaderboard updates every Monday morning.</p>
+<p><a href="{DEPLOYED_URL}">View the leaderboard →</a></p>
+<p style="color:#888;font-size:12px">To unsubscribe reply with "unsubscribe"</p>
+""",
+    )
+
+    # Notify owner
+    if OWNER_EMAIL:
+        _send_email(
+            to      = OWNER_EMAIL,
+            subject = f"New KOL Tracker subscriber: {email}",
+            html    = f"<p>New subscriber: <strong>{email}</strong></p>",
+        )
+
+    return {"message": "Subscribed! Check your inbox."}
+
+
+# ── POST /waitlist ──────────────────────────────────────────────
+@app.post("/waitlist")
+def join_waitlist(email: str):
+    session = get_session()
+    existing = session.query(Waitlist).filter_by(email=email).first()
+    if existing:
+        session.close()
+        return {"message": "Already on the waitlist!"}
+
+    entry = Waitlist(email=email)
+    session.add(entry)
+    session.commit()
+    session.close()
+
+    # Confirmation email to user
+    _send_email(
+        to      = email,
+        subject = "You're on the waitlist 🚀",
+        html    = f"""
+<h2>You're on the waitlist!</h2>
+<p>We'll notify you when premium features launch — and you'll get 3 months free as an early supporter.</p>
+<p><a href="{DEPLOYED_URL}">View the leaderboard →</a></p>
+""",
+    )
+
+    # Notify owner
+    if OWNER_EMAIL:
+        _send_email(
+            to      = OWNER_EMAIL,
+            subject = f"New KOL Tracker waitlist: {email}",
+            html    = f"<p>New waitlist signup: <strong>{email}</strong></p>",
+        )
+
+    return {"message": "You're on the waitlist!"}
 
 
 # ── POST /request-kol ──────────────────────────────────────────
@@ -505,16 +596,127 @@ def get_asset_detail(ticker: str, days: int = Query(7, ge=1, le=365)):
 
 
 # ── GET /stats ─────────────────────────────────────────────────
-# Quick platform stats for homepage
 @app.get("/stats")
 def get_stats():
-    session     = get_session()
-    kol_count   = session.query(KOL).filter_by(is_active=True).count()
-    rec_count   = session.query(Recommendation).count()
-    tweet_count = session.query(RawTweet).count()
+    session          = get_session()
+    kol_count        = session.query(KOL).filter_by(is_active=True).count()
+    rec_count        = session.query(Recommendation).count()
+    tweet_count      = session.query(RawTweet).count()
+    subscriber_count = session.query(Subscriber).filter_by(is_active=True).count()
     session.close()
     return {
-        "kols_tracked"   : kol_count,
-        "recommendations": rec_count,
-        "tweets_analyzed": tweet_count,
+        "kols_tracked"      : kol_count,
+        "recommendations"   : rec_count,
+        "tweets_analyzed"   : tweet_count,
+        "total_subscribers" : subscriber_count,
     }
+
+
+# ── GET /admin/subscribers ──────────────────────────────────────
+@app.get("/admin/subscribers")
+def get_subscribers(x_admin_key: str = Header(None)):
+    admin_key = os.getenv("ADMIN_KEY", "changeme123")
+    if x_admin_key != admin_key:
+        raise HTTPException(status_code=401, detail="Invalid admin key")
+
+    session = get_session()
+
+    total_subs     = session.query(Subscriber).filter_by(is_active=True).count()
+    total_waitlist = session.query(Waitlist).count()
+
+    recent_subs = session.query(Subscriber)\
+        .order_by(Subscriber.subscribed_at.desc()).limit(10).all()
+    recent_wait = session.query(Waitlist)\
+        .order_by(Waitlist.joined_at.desc()).limit(10).all()
+
+    session.close()
+    return {
+        "total_subscribers" : total_subs,
+        "total_waitlist"    : total_waitlist,
+        "recent_subscribers": [
+            {"email": s.email, "subscribed_at": s.subscribed_at.isoformat()}
+            for s in recent_subs
+        ],
+        "recent_waitlist"   : [
+            {"email": w.email, "joined_at": w.joined_at.isoformat()}
+            for w in recent_wait
+        ],
+    }
+
+
+# ── POST /admin/send-digest ────────────────────────────────────
+@app.post("/admin/send-digest")
+def send_digest(x_admin_key: str = Header(None)):
+    admin_key = os.getenv("ADMIN_KEY", "changeme123")
+    if x_admin_key != admin_key:
+        raise HTTPException(status_code=401, detail="Invalid admin key")
+
+    session = get_session()
+
+    # Top 5 KOLs by T7D win rate
+    kols   = session.query(KOL).filter_by(is_active=True).all()
+    scored = []
+    for kol in kols:
+        score = session.query(KOLScore).filter_by(kol_id=kol.id, period="T7D").first()
+        if score and score.total_calls > 0:
+            scored.append((kol.handle, score.win_rate, score.total_calls))
+    scored.sort(key=lambda x: x[1], reverse=True)
+    top5 = scored[:5]
+
+    # Top 3 assets last 7 days
+    cutoff = datetime.utcnow() - timedelta(days=7)
+    rows = session.query(
+        Recommendation.ticker,
+        func.count(Recommendation.id).label("total"),
+    ).filter(Recommendation.posted_at >= cutoff)\
+     .group_by(Recommendation.ticker)\
+     .order_by(func.count(Recommendation.id).desc())\
+     .limit(3).all()
+
+    # Active subscribers
+    subscribers = session.query(Subscriber).filter_by(is_active=True).all()
+    session.close()
+
+    if not subscribers:
+        return {"message": "No active subscribers to send to."}
+
+    kol_rows_html = "".join(
+        f"<tr><td style='padding:8px 16px;'>@{h}</td>"
+        f"<td style='padding:8px 16px;text-align:center;'>{round(wr,1)}%</td>"
+        f"<td style='padding:8px 16px;text-align:center;'>{calls}</td></tr>"
+        for h, wr, calls in top5
+    )
+    asset_list_html = "".join(
+        f"<li><strong>${r.ticker}</strong> — {r.total} predictions</li>"
+        for r in rows
+    )
+
+    html_body = f"""
+<h2 style="color:#00ff88;">This Week's Top Performers</h2>
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;">
+  <thead>
+    <tr style="background:#1a1a1a;color:#888;font-size:12px;">
+      <th style="padding:8px 16px;text-align:left;">Handle</th>
+      <th style="padding:8px 16px;">Win Rate</th>
+      <th style="padding:8px 16px;">Predictions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {kol_rows_html}
+  </tbody>
+</table>
+<h2 style="color:#00ff88;margin-top:24px;">Most Predicted Assets This Week</h2>
+<ul>{asset_list_html}</ul>
+<p style="margin-top:24px;"><a href="{DEPLOYED_URL}" style="color:#00ff88;">See full leaderboard →</a></p>
+"""
+
+    sent = 0
+    for sub in subscribers:
+        _send_email(
+            to      = sub.email,
+            subject = "KOL Tracker Weekly Update 📊",
+            html    = html_body,
+        )
+        sent += 1
+
+    return {"message": f"Digest sent to {sent} subscribers."}
