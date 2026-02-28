@@ -8,14 +8,22 @@ from datetime import datetime
 
 load_dotenv()
 
-def scrape_kol_tweets(max_per_run: int = 50):
-    """Fetch latest tweets from all active KOLs and store in database."""
+def scrape_kol_tweets(max_per_run: int = 50, handles_filter: list = None):
+    """Fetch latest tweets from active KOLs and store in database.
+
+    handles_filter: optional list of handles to restrict to (e.g. for new-KOL-only scrapes).
+                    When None, scrapes all active KOLs.
+    """
 
     client  = ApifyClient(os.getenv("APIFY_API_TOKEN"))
     session = get_session()
 
-    # Get all active KOLs from database
+    # Get active KOLs, optionally filtered to a specific set
     kols = session.query(KOL).filter_by(is_active=True).all()
+    if handles_filter:
+        filter_set = {h.lstrip("@").lower() for h in handles_filter}
+        kols = [k for k in kols if k.handle.lower() in filter_set]
+        print(f"  (Filtered to {len(kols)} handles from handles_filter)")
 
     # Strip @ from handles for Apify (it doesn't want the @ symbol)
     # But keep a lookup dict that matches both ways

@@ -41,8 +41,8 @@ def passes_regex_filter(text: str) -> bool:
     # Check 2: Contains stock-related keywords
     has_keyword = any(keyword in text_lower for keyword in STOCK_KEYWORDS)
 
-    # Must have EITHER a cashtag OR a keyword to pass
-    return has_cashtag or has_keyword
+    # Must have BOTH a cashtag AND a keyword — requires explicit ticker + direction
+    return has_cashtag and has_keyword
 
 
 # ── Stage 2: Claude Parser ─────────────────────────────────────────────────────
@@ -90,7 +90,8 @@ Rules:
   * SELL: sell, exit, trimmed, reducing, take profit
   * SHORT: short, bearish, put, remains short
 - Set has_recommendation FALSE for: pure news, earnings reports with no directional call, general market commentary without a specific ticker call, price observations with no direction
-- If a tweet mentions multiple tickers with the same direction, pick the most prominently featured one"""
+- If a tweet mentions multiple tickers with the same direction, pick the most prominently featured one
+- IMPORTANT: ticker must be explicitly mentioned in $TICKER format in the tweet (dollar-sign prefix). Do NOT infer a ticker from a company name alone without a $SYMBOL present."""
 
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",

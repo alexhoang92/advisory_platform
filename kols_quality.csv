@@ -1,0 +1,12 @@
+handle,display_name,content_type,prediction_style
+FlowAlerts,Flow Alerts,options flow,explicit
+OptionStalker,Option Stalker,options flow,explicit
+tradytics,Tradytics,options flow,explicit
+Trader_Dante,Trader Dante,day trading,explicit
+TheLastBearStanding,The Last Bear Standing,short selling,explicit
+MadazMoney,Madaz Money,day trading,explicit
+GameofTrades,Game of Trades,technical analysis,explicit
+Gary_Black,Gary Black,growth stocks,explicit
+pr0trade,Pro Trade,technical analysis,explicit
+HsakaTrades,Hsaka Trades,crypto/stocks,explicit
+HindenburgRes,Hindenburg Research,short selling,explicit
