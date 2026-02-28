@@ -10,10 +10,24 @@ import threading
 import yfinance as yf
 from dotenv import load_dotenv
 import resend
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
 load_dotenv()
 
 DEPLOYED_URL = "https://web-production-94c5.up.railway.app"
+
+_sentry_dsn = os.getenv("SENTRY_DSN")
+if _sentry_dsn:
+    sentry_sdk.init(
+        dsn         = _sentry_dsn,
+        integrations= [FastApiIntegration(), SqlalchemyIntegration()],
+        traces_sample_rate = 0.1,
+        environment = "production",
+    )
+else:
+    print("ℹ️  SENTRY_DSN not set — error monitoring disabled")
 OWNER_EMAIL  = os.getenv("OWNER_EMAIL")
 
 _resend_key = os.getenv("RESEND_API_KEY")

@@ -3,9 +3,22 @@ import time
 import sys
 import os
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+import sentry_sdk
+_sentry_dsn = os.getenv("SENTRY_DSN")
+if _sentry_dsn:
+    sentry_sdk.init(dsn=_sentry_dsn, traces_sample_rate=0.1, environment="production")
+
+
+def _capture(e: Exception):
+    if _sentry_dsn:
+        sentry_sdk.capture_exception(e)
 
 from crawler.apify_scraper import scrape_kol_tweets
 from parser.llm_parser import run_parser
@@ -32,6 +45,7 @@ def run_daily_pipeline():
         print(f"   ✅ {tweets_added} new tweets collected\n")
     except Exception as e:
         print(f"   ❌ Stage 1 failed: {e}\n")
+        _capture(e)
 
     # ── Stage 2: Parse all unparsed tweets (loop until done) ───
     print("🧠 Stage 2/4: Parsing tweets for stock recommendations...")
@@ -51,6 +65,7 @@ def run_daily_pipeline():
         print(f"   ✅ {total_recs} recommendations extracted across {batches} batches\n")
     except Exception as e:
         print(f"   ❌ Stage 2 failed: {e}\n")
+        _capture(e)
 
     # ── Stage 3: Fetch price snapshots ──────────────────────────
     print("💰 Stage 3/4: Fetching price snapshots...")
@@ -60,6 +75,7 @@ def run_daily_pipeline():
         print(f"   ✅ {snapshots_added} price snapshots recorded\n")
     except Exception as e:
         print(f"   ❌ Stage 3 failed: {e}\n")
+        _capture(e)
 
     # ── Stage 4: Recalculate scores ─────────────────────────────
     print("🏆 Stage 4/4: Recalculating KOL accuracy scores...")
@@ -69,6 +85,7 @@ def run_daily_pipeline():
         print(f"   ✅ {len(scores)} score entries updated\n")
     except Exception as e:
         print(f"   ❌ Stage 4 failed: {e}\n")
+        _capture(e)
 
     print(f"\n{'='*50}")
     print(f"✅ Pipeline Complete: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
