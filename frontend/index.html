@@ -531,12 +531,110 @@
     }
     .asset-item:hover { border-color: #00ff88; }
 
+    /* ── How It Works ── */
+    .how-it-works {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 32px 48px;
+    }
+    .how-title {
+      font-size: 14px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .how-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .how-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .how-icon { font-size: 28px; }
+    .how-card-title {
+      font-weight: 700;
+      color: #fff;
+      margin: 8px 0 4px;
+    }
+    .how-card-text { font-size: 13px; color: #888; }
+
+    /* ── Waitlist Banner ── */
+    .waitlist-banner {
+      background: #1a1a1a;
+      border-top: 1px solid #2a2a2a;
+      padding: 48px 32px;
+      text-align: center;
+    }
+    .waitlist-tag {
+      font-size: 13px;
+      color: #00ff88;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+    }
+    .waitlist-headline {
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .waitlist-sub {
+      font-size: 16px;
+      color: #888;
+      max-width: 480px;
+      margin: 0 auto 24px;
+    }
+    .waitlist-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .waitlist-input {
+      width: 280px;
+      padding: 12px 16px;
+      background: #0f0f0f;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+    .waitlist-input:focus { border-color: #00ff88; }
+    .btn-waitlist {
+      background: #00ff88;
+      color: #000;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      transition: opacity 0.2s;
+    }
+    .btn-waitlist:hover { opacity: 0.85; }
+    .waitlist-success {
+      display: none;
+      color: #00ff88;
+      font-size: 14px;
+      margin-top: 12px;
+    }
+
     @media (max-width: 800px) {
       .main-content {
         flex-direction: column;
         padding: 0 16px 48px;
       }
       .top-assets { width: 100%; }
+      .how-grid { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
 </head>
@@ -569,6 +667,10 @@
       <div class="stat-number" id="stat-tweets">—</div>
       <div class="stat-label">Tweets Analyzed</div>
     </div>
+    <div class="stat" id="stat-subscribers-wrap" style="display:none;">
+      <div class="stat-number" id="stat-subscribers">—</div>
+      <div class="stat-label">Subscribers</div>
+    </div>
   </div>
 
   <div class="search-container">
@@ -585,6 +687,33 @@
 
 <!-- Search Results -->
 <div class="search-results" id="search-results"></div>
+
+<!-- How It Works -->
+<div class="how-it-works">
+  <div class="how-title">How We Score KOLs</div>
+  <div class="how-grid">
+    <div class="how-card">
+      <div class="how-icon">📡</div>
+      <div class="how-card-title">We Track</div>
+      <div class="how-card-text">Daily scraping of 80+ financial influencers on X/Twitter</div>
+    </div>
+    <div class="how-card">
+      <div class="how-icon">🧠</div>
+      <div class="how-card-title">We Parse</div>
+      <div class="how-card-text">AI reads every tweet and extracts stock recommendations automatically</div>
+    </div>
+    <div class="how-card">
+      <div class="how-icon">📊</div>
+      <div class="how-card-title">We Score</div>
+      <div class="how-card-text">Each call is marked correct or wrong based on real price movement at 1, 7, and 30 days</div>
+    </div>
+    <div class="how-card">
+      <div class="how-icon">🏆</div>
+      <div class="how-card-title">We Rank</div>
+      <div class="how-card-text">KOLs are ranked by win rate so you know who is actually worth following</div>
+    </div>
+  </div>
+</div>
 
 <!-- Period Filter -->
 <div class="period-filter">
@@ -632,6 +761,18 @@
   </div>
 </div>
 
+<!-- Waitlist Banner -->
+<div class="waitlist-banner">
+  <div class="waitlist-tag">🚀 Premium Features Coming Soon</div>
+  <div class="waitlist-headline">Get Early Access + 3 Months Free</div>
+  <div class="waitlist-sub">Be first to get alerts when your KOLs make new calls, advanced portfolio tracking, and custom watchlists.</div>
+  <div class="waitlist-row">
+    <input class="waitlist-input" id="waitlist-email" type="email" placeholder="your@email.com" />
+    <button class="btn-waitlist" onclick="submitWaitlist()">Join Waitlist →</button>
+  </div>
+  <div class="waitlist-success" id="waitlist-success">✅ You're on the list! We'll notify you at launch.</div>
+</div>
+
 <!-- Request KOL Modal -->
 <div class="request-modal" id="request-modal">
   <div class="request-box">
@@ -660,8 +801,33 @@
       document.getElementById("stat-kols").textContent   = data.kols_tracked;
       document.getElementById("stat-recs").textContent   = data.recommendations;
       document.getElementById("stat-tweets").textContent = data.tweets_analyzed;
+
+      // Show subscriber stat only if count > 0
+      const subCount = data.total_subscribers || 0;
+      const subStat  = document.getElementById("stat-subscribers-wrap");
+      if (subStat) {
+        if (subCount > 0) {
+          document.getElementById("stat-subscribers").textContent = subCount;
+          subStat.style.display = "block";
+        } else {
+          subStat.style.display = "none";
+        }
+      }
     } catch(e) {
       console.error("Stats load failed", e);
+    }
+  }
+
+  // ── Waitlist ───────────────────────────────────────────────
+  async function submitWaitlist() {
+    const email = document.getElementById("waitlist-email").value.trim();
+    if (!email) return;
+    try {
+      await axios.post(API + "/waitlist?email=" + encodeURIComponent(email));
+      document.getElementById("waitlist-success").style.display = "block";
+      document.getElementById("waitlist-email").value = "";
+    } catch(e) {
+      alert("Something went wrong. Please try again.");
     }
   }
 
