@@ -39,6 +39,14 @@ app.mount("/static", StaticFiles(directory="frontend"), name="static")
 def serve_frontend():
     return FileResponse("frontend/index.html")
 
+@app.get("/robots.txt", include_in_schema=False)
+def robots():
+    return FileResponse("frontend/robots.txt")
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap():
+    return FileResponse("frontend/sitemap.xml")
+
 # ── Email helper ───────────────────────────────────────────────
 def _send_email(to: str, subject: str, html: str):
     """Send email via Resend. No-op if RESEND_API_KEY is missing."""
