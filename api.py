@@ -67,6 +67,14 @@ def robots():
 def sitemap():
     return FileResponse("frontend/sitemap.xml")
 
+@app.get("/disclaimer", include_in_schema=False)
+def serve_disclaimer():
+    return FileResponse("frontend/disclaimer.html")
+
+@app.get("/how-it-works", include_in_schema=False)
+def serve_how_it_works():
+    return FileResponse("frontend/how-it-works.html")
+
 @app.get("/kol/{handle}", include_in_schema=False)
 def serve_kol_profile(handle: str):
     return FileResponse("frontend/index.html")

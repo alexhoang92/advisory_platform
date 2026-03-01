@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Investment Disclaimer — KOL Tracker</title>
+  <meta name="description" content="Investment disclaimer for KOL Tracker. This platform provides data for informational purposes only and does not constitute investment advice.">
+  <meta property="og:title" content="Investment Disclaimer — KOL Tracker">
+  <meta property="og:description" content="KOL Tracker is a data aggregation platform, not a financial advisor. Read our full disclaimer before using the platform.">
+  <meta property="og:type" content="website">
+  <link rel="canonical" href="https://web-production-94c5.up.railway.app/disclaimer">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding-bottom: 100px;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo { font-size: 20px; font-weight: 700; color: #00ff88; text-decoration: none; }
+    .logo span { color: #fff; }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a {
+      color: #888;
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: #fff; }
+    .nav-links a.active { color: #fff; }
+    .btn-home {
+      background: #00ff88;
+      color: #000;
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .btn-home:hover { opacity: 0.85; }
+
+    /* ── Page header ── */
+    .page-header {
+      text-align: center;
+      padding: 56px 32px 40px;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    .warning-icon {
+      font-size: 56px;
+      display: block;
+      margin-bottom: 16px;
+    }
+    .page-header h1 {
+      font-size: 36px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+    .page-header p {
+      font-size: 16px;
+      color: #888;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    /* ── Content wrapper ── */
+    .content {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    /* ── Warning border card ── */
+    .disclaimer-card {
+      border: 2px solid #ff4444;
+      border-radius: 16px;
+      padding: 40px;
+      background: #1a0a0a;
+    }
+
+    /* ── Section ── */
+    .section {
+      margin-bottom: 36px;
+      padding-bottom: 36px;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    .section:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 14px;
+    }
+    .section-icon { font-size: 22px; }
+    .section p {
+      color: #aaa;
+      font-size: 15px;
+      line-height: 1.7;
+      margin-bottom: 10px;
+    }
+    .section p:last-child { margin-bottom: 0; }
+    .section ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 8px;
+    }
+    .section ul li {
+      color: #aaa;
+      font-size: 15px;
+      line-height: 1.6;
+      padding: 5px 0 5px 20px;
+      position: relative;
+    }
+    .section ul li::before {
+      content: "•";
+      color: #ff4444;
+      position: absolute;
+      left: 0;
+      font-weight: 700;
+    }
+
+    /* ── Highlight box ── */
+    .highlight-box {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-left: 3px solid #ff4444;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-top: 12px;
+    }
+    .highlight-box p {
+      font-size: 14px;
+      color: #888;
+      margin: 0;
+    }
+    .highlight-box strong { color: #fff; }
+
+    /* ── Last updated ── */
+    .last-updated {
+      text-align: center;
+      color: #555;
+      font-size: 13px;
+      margin-top: 32px;
+    }
+
+    /* ── Sticky accept bar ── */
+    #accept-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1a1a1a;
+      border-top: 1px solid #2a2a2a;
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.5);
+      z-index: 200;
+    }
+    .accept-bar-text {
+      font-size: 14px;
+      color: #888;
+      flex: 1;
+    }
+    .accept-bar-text strong { color: #fff; }
+    .btn-accept {
+      background: #00ff88;
+      color: #000;
+      padding: 10px 28px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.2s;
+    }
+    .btn-accept:hover { opacity: 0.85; }
+    .btn-accept-secondary {
+      background: none;
+      border: 1px solid #333;
+      color: #888;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color 0.2s, color 0.2s;
+      text-decoration: none;
+    }
+    .btn-accept-secondary:hover { border-color: #555; color: #ccc; }
+
+    /* ── Footer ── */
+    footer {
+      background: #1a1a1a;
+      border-top: 1px solid #2a2a2a;
+      padding: 32px;
+      text-align: center;
+      margin-top: 64px;
+    }
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .footer-links a {
+      color: #555;
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: #888; }
+    .footer-copy {
+      color: #333;
+      font-size: 12px;
+    }
+
+    @media (max-width: 768px) {
+      .page-header { padding: 40px 20px 32px; }
+      .page-header h1 { font-size: 28px; }
+      .disclaimer-card { padding: 24px 20px; }
+      nav { padding: 14px 20px; }
+      .nav-links { gap: 16px; }
+      .nav-links .nav-how { display: none; }
+      #accept-bar { flex-direction: column; align-items: stretch; padding: 16px 20px; }
+      .accept-bar-text { text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <a class="logo" href="/">KOL<span>Tracker</span></a>
+  <div class="nav-links">
+    <a href="/how-it-works" class="nav-how">How It Works</a>
+    <a href="/disclaimer" class="active">Disclaimer</a>
+    <a href="/" class="btn-home">← Back to Leaderboard</a>
+  </div>
+</nav>
+
+<!-- Page header -->
+<div class="page-header">
+  <span class="warning-icon" aria-hidden="true">⚠️</span>
+  <h1>Investment Disclaimer</h1>
+  <p>Please read carefully before using this platform. This is important legal information about the nature of our service.</p>
+</div>
+
+<!-- Main content -->
+<div class="content">
+  <div class="disclaimer-card">
+
+    <!-- Not Investment Advice -->
+    <div class="section">
+      <div class="section-title">
+        <span class="section-icon" aria-hidden="true">⚠️</span>
+        Not Investment Advice
+      </div>
+      <p>KOL Tracker is a <strong>data aggregation and analytics platform</strong>. Nothing on this website constitutes financial, investment, trading, or any other type of professional advice.</p>
+      <p>We are not registered financial advisors, broker-dealers, investment advisers, or any other type of licensed financial professional. We do not recommend buying or selling any security.</p>
+      <div class="highlight-box">
+        <p><strong>The leaderboard, win rates, and scores shown are historical statistics only.</strong> They are presented for informational and educational purposes and should not be used as the basis for any investment decision.</p>
+      </div>
+    </div>
+
+    <!-- No Warranties on Accuracy -->
+    <div class="section">
+      <div class="section-title">
+        <span class="section-icon" aria-hidden="true">📊</span>
+        No Warranties on Accuracy
+      </div>
+      <p>Our data pipeline uses automated systems that may contain errors:</p>
+      <ul>
+        <li>We use <strong>Anthropic Claude Haiku AI</strong> to parse tweets — the AI may misinterpret sarcasm, jokes, hypotheticals, or unclear language as genuine stock calls</li>
+        <li>Stock prices are sourced from <strong>Yahoo Finance (yfinance)</strong> and may have 15–20 minute delays during market hours</li>
+        <li>KOLs may delete or edit tweets after we scrape them — we cannot retroactively capture deletions</li>
+        <li>Our pre-filter requires both a ticker symbol and a directional keyword — calls that don't follow this pattern may be missed</li>
+        <li>We manually audit samples but cannot guarantee 100% accuracy across thousands of parsed tweets</li>
+      </ul>
+      <p>We make no warranty, express or implied, about the completeness, accuracy, reliability, or suitability of any data on this platform.</p>
+    </div>
+
+    <!-- Past Performance -->
+    <div class="section">
+      <div class="section-title">
+        <span class="section-icon" aria-hidden="true">📈</span>
+        Past Performance ≠ Future Results
+      </div>
+      <p>A KOL's historical win rate is <strong>not a guarantee or even a reliable indicator of future performance</strong>. Stock markets are inherently unpredictable.</p>
+      <ul>
+        <li>A KOL with a 70% win rate in the past 7 days may perform poorly in the next 7 days</li>
+        <li>Small sample sizes (fewer than 20–30 calls) are not statistically significant</li>
+        <li>Market conditions change — strategies that worked in one environment may fail in another</li>
+        <li>Past accuracy in any time period does not predict accuracy in any future period</li>
+      </ul>
+    </div>
+
+    <!-- Third-Party Content -->
+    <div class="section">
+      <div class="section-title">
+        <span class="section-icon" aria-hidden="true">🔗</span>
+        Third-Party Content
+      </div>
+      <p>All stock predictions shown on KOL Tracker are <strong>sourced from public posts on X/Twitter</strong> by third-party individuals. We are not affiliated with, endorsed by, or in any partnership with any of the KOLs tracked on this platform.</p>
+      <ul>
+        <li>The KOLs tracked have not consented to or approved our analysis of their public posts</li>
+        <li>Their inclusion does not imply our endorsement of their views or trading strategies</li>
+        <li>KOLs may have undisclosed conflicts of interest, such as positions in the stocks they recommend</li>
+        <li>We do not verify whether KOLs actually execute the trades they publicly discuss</li>
+      </ul>
+    </div>
+
+    <!-- Investment Risks -->
+    <div class="section">
+      <div class="section-title">
+        <span class="section-icon" aria-hidden="true">⚡</span>
+        Investment Risks
+      </div>
+      <p>All investments involve risk. You may lose some or all of the money you invest. Specific risks include:</p>
+      <ul>
+        <li><strong>Market risk:</strong> Stock prices can fall sharply and unpredictably</li>
+        <li><strong>Liquidity risk:</strong> You may not be able to sell at the price you want</li>
+        <li><strong>Concentration risk:</strong> Following any single source of recommendations can lead to undiversified portfolios</li>
+        <li><strong>Timing risk:</strong> Even a correct directional call may not benefit you if your entry or exit timing differs from the KOL's</li>
+        <li><strong>Information asymmetry:</strong> KOLs may have information or position sizes that differ significantly from what is publicly stated</li>
+      </ul>
+    </div>
+
+    <!-- No Liability -->
+    <div class="section">
+      <div class="section-title">
+        <span class="section-icon" aria-hidden="true">🛡️</span>
+        No Liability
+      </div>
+      <p>To the maximum extent permitted by applicable law, KOL Tracker and its operators shall not be liable for any direct, indirect, incidental, special, consequential, or punitive damages arising from:</p>
+      <ul>
+        <li>Your use of or reliance on data presented on this platform</li>
+        <li>Any investment decisions made based on information from this platform</li>
+        <li>Errors, inaccuracies, or omissions in the data we present</li>
+        <li>Any interruption, suspension, or termination of the service</li>
+      </ul>
+      <div class="highlight-box">
+        <p><strong>By using this platform, you acknowledge that you are solely responsible for any investment decisions you make.</strong></p>
+      </div>
+    </div>
+
+    <!-- Do Your Own Research -->
+    <div class="section">
+      <div class="section-title">
+        <span class="section-icon" aria-hidden="true">🔍</span>
+        Do Your Own Research
+      </div>
+      <p>Before making any investment decision, we strongly recommend:</p>
+      <ul>
+        <li>Consulting with a <strong>licensed financial advisor</strong> who understands your personal financial situation</li>
+        <li>Conducting your own independent research on any security before investing</li>
+        <li>Understanding the company's fundamentals, financial statements, and competitive position</li>
+        <li>Considering your own risk tolerance, investment timeline, and financial goals</li>
+        <li>Diversifying your portfolio rather than concentrating in any single stock or sector</li>
+        <li>Being skeptical of any source — including this platform — that claims to predict stock movements</li>
+      </ul>
+      <p>KOL Tracker is a tool for <em>studying</em> social media prediction patterns, not a signal service for trading.</p>
+    </div>
+
+    <div class="last-updated">Last updated: March 1, 2026</div>
+
+  </div><!-- /.disclaimer-card -->
+</div><!-- /.content -->
+
+<!-- Footer -->
+<footer>
+  <div class="footer-links">
+    <a href="/">Home</a>
+    <a href="/how-it-works">How It Works</a>
+    <a href="/disclaimer">Disclaimer</a>
+    <a href="#">Privacy Policy</a>
+    <a href="#">Terms of Service</a>
+  </div>
+  <div class="footer-copy">© 2026 KOL Tracker. Not investment advice.</div>
+</footer>
+
+<!-- Sticky Accept & Continue bar -->
+<div id="accept-bar">
+  <div class="accept-bar-text">
+    <strong>Have you read the disclaimer?</strong> By continuing to use KOL Tracker you acknowledge this platform provides data for informational purposes only.
+  </div>
+  <a href="/" class="btn-accept-secondary">Go back</a>
+  <button class="btn-accept" onclick="acceptDisclaimer()">I Understand — Continue →</button>
+</div>
+
+<script>
+  // Hide accept bar if already accepted
+  try {
+    if (localStorage.getItem('kol_disclaimer_accepted') === 'true') {
+      document.getElementById('accept-bar').style.display = 'none';
+    }
+  } catch(e) {}
+
+  function acceptDisclaimer() {
+    try { localStorage.setItem('kol_disclaimer_accepted', 'true'); } catch(e) {}
+    document.getElementById('accept-bar').style.display = 'none';
+    // Redirect back to homepage after a brief pause
+    setTimeout(() => { window.location.href = '/'; }, 200);
+  }
+</script>
+
+</body>
+</html>
