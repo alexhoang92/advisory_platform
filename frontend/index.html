@@ -642,6 +642,108 @@
       margin-top: 12px;
     }
 
+    /* ── Profile View ── */
+    #profile-view {
+      position: fixed; inset: 0;
+      background: #0f0f0f;
+      overflow-y: auto;
+      z-index: 500;
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+    }
+    #profile-view.visible { transform: translateX(0); }
+    .profile-sticky-header {
+      position: sticky; top: 0; z-index: 10;
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+      padding: 16px 24px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .profile-back-btn, .profile-share-btn {
+      background: none; border: none; color: #888; font-size: 15px; cursor: pointer;
+    }
+    .profile-header-handle { color: white; font-weight: 700; font-size: 16px; }
+    .profile-identity-card {
+      background: #1a1a1a; border-bottom: 1px solid #2a2a2a;
+      padding: 28px 24px; display: flex; gap: 20px; align-items: flex-start;
+    }
+    .profile-avatar {
+      width: 64px; height: 64px; border-radius: 50%; background: #2a2a2a;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; font-weight: 800; color: #00ff88; flex-shrink: 0;
+    }
+    .profile-info { flex: 1; }
+    .profile-handle-text { font-size: 22px; font-weight: 800; color: white; }
+    .profile-display-name { font-size: 14px; color: #888; }
+    .profile-type-row { display: flex; align-items: center; gap: 12px; margin-top: 6px; flex-wrap: wrap; }
+    .profile-content-type-badge { background: #2a2a2a; color: #888; padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+    .profile-stars { font-size: 16px; }
+    .profile-ranking { color: #555; font-size: 12px; display: block; margin-top: 4px; }
+    .profile-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+    .profile-follow-btn { padding: 8px 20px; border-radius: 20px; font-weight: 700; font-size: 13px; cursor: pointer; }
+    .profile-follow-btn.not-following { background: #00ff88; color: #000; border: none; }
+    .profile-follow-btn.following { background: transparent; color: #00ff88; border: 1px solid #00ff88; }
+    .profile-follower-count { color: #555; font-size: 13px; }
+    .profile-section { padding: 24px; max-width: 900px; }
+    .profile-period-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .profile-period-tab {
+      padding: 8px 20px; border-radius: 20px; font-size: 14px; cursor: pointer;
+      border: 1px solid #2a2a2a; background: transparent; color: #888; transition: all 0.2s;
+    }
+    .profile-period-tab.active { background: #00ff88; color: #000; border-color: #00ff88; font-weight: 700; }
+    .profile-metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+    .profile-metric-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; text-align: center; }
+    .profile-metric-value { font-size: 32px; font-weight: 800; }
+    .profile-metric-sub { color: #555; font-size: 13px; margin-top: 4px; }
+    .profile-metric-label { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+    .profile-note { color: #555; font-size: 12px; text-align: center; margin-top: 12px; }
+    .profile-section-label { color: #555; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
+    .breakdown-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; }
+    .breakdown-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .breakdown-label { width: 40px; font-weight: 700; font-size: 13px; }
+    .breakdown-track { flex: 1; height: 8px; border-radius: 4px; background: #2a2a2a; position: relative; overflow: hidden; }
+    .breakdown-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .breakdown-pct { color: #888; width: 36px; text-align: right; font-size: 14px; }
+    .breakdown-count { color: #555; font-size: 12px; width: 68px; }
+    .activity-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #2a2a2a; border-radius: 12px; overflow: hidden; }
+    .activity-cell { background: #1a1a1a; padding: 20px; }
+    .activity-value { font-size: 20px; font-weight: 700; color: white; }
+    .activity-label { font-size: 12px; color: #555; margin-top: 4px; }
+    .best-worst-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .best-worst-col-label { font-size: 14px; font-weight: 700; color: white; margin-bottom: 12px; }
+    .bw-call-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 16px; margin-bottom: 8px; }
+    .bw-return { font-size: 22px; font-weight: 800; margin-top: 8px; }
+    .call-history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .call-history-title { font-size: 16px; font-weight: 700; color: white; }
+    .call-history-count { color: #555; font-size: 13px; }
+    .filter-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .filter-pill { padding: 6px 16px; border-radius: 20px; font-size: 13px; cursor: pointer; border: 1px solid #2a2a2a; background: transparent; color: #888; transition: all 0.2s; }
+    .filter-pill.active { background: #00ff88; color: #000; border-color: #00ff88; font-weight: 700; }
+    .call-row { border-bottom: 1px solid #1a1a1a; padding: 16px 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .call-row-left { flex: 1; }
+    .call-ticker { font-size: 16px; font-weight: 800; color: white; }
+    .call-signal { color: #888; font-size: 13px; margin: 2px 0; }
+    .call-date { color: #555; font-size: 12px; }
+    .call-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .call-price-change { font-size: 14px; font-weight: 700; }
+    .load-more-btn { display: block; margin: 20px auto 0; background: #1a1a1a; border: 1px solid #2a2a2a; color: #888; padding: 12px 40px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+
+    /* ── Follow Email Modal ── */
+    #follow-email-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 600; justify-content: center; align-items: center; }
+    #follow-email-modal.visible { display: flex; }
+    .follow-modal-box { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 16px; padding: 32px; max-width: 380px; width: 90%; }
+    .follow-modal-title { font-size: 20px; font-weight: 800; color: white; }
+    .follow-modal-sub { color: #888; font-size: 14px; margin: 8px 0 20px; }
+    .follow-email-input { width: 100%; padding: 12px 16px; background: #0f0f0f; border: 1px solid #2a2a2a; border-radius: 8px; color: #fff; font-size: 14px; outline: none; }
+    .follow-email-input:focus { border-color: #00ff88; }
+    .follow-email-error { color: #ff4444; font-size: 13px; margin-top: 8px; display: none; }
+    .follow-confirm-btn { width: 100%; background: #00ff88; color: #000; padding: 12px; border-radius: 8px; font-weight: 700; margin-top: 12px; cursor: pointer; border: none; font-size: 15px; }
+    .follow-cancel-link { display: block; text-align: center; color: #555; font-size: 13px; margin-top: 12px; cursor: pointer; }
+
+    /* ── Toast ── */
+    #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a1a; border: 1px solid #2a2a2a; color: white; padding: 12px 24px; border-radius: 8px; z-index: 1000; font-size: 14px; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
+    #toast.show { opacity: 1; }
+
     @media (max-width: 800px) {
       .main-content {
         flex-direction: column;
@@ -649,6 +751,10 @@
       }
       .top-assets { width: 100%; }
       .how-grid { grid-template-columns: repeat(2, 1fr); }
+      .best-worst-grid { grid-template-columns: 1fr; }
+      .profile-metrics-grid { gap: 8px; }
+      .profile-metric-value { font-size: 22px; }
+      .profile-metric-card { padding: 14px; }
     }
   </style>
 </head>
@@ -753,11 +859,6 @@
 
 </div>
 
-<!-- KOL Detail Modal -->
-<div class="modal-overlay" id="kol-modal" onclick="closeModal(event)">
-  <div class="modal" id="kol-modal-content"></div>
-</div>
-
 <!-- Asset Detail Modal -->
 <div class="modal-overlay" id="asset-modal" onclick="closeAssetModal(event)">
   <div class="modal" id="asset-modal-content"></div>
@@ -801,11 +902,177 @@
   </div>
 </div>
 
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- KOL Profile View (full-screen slide-in)                    -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div id="profile-view">
+
+  <!-- Sticky header bar -->
+  <div class="profile-sticky-header">
+    <button class="profile-back-btn" onclick="goBack()">← Back</button>
+    <span class="profile-header-handle" id="profile-header-handle">@—</span>
+    <button class="profile-share-btn" onclick="handleShare()">🔗 Share</button>
+  </div>
+
+  <!-- Identity card -->
+  <div class="profile-identity-card">
+    <div class="profile-avatar" id="profile-avatar">?</div>
+    <div class="profile-info">
+      <div class="profile-handle-text" id="profile-handle-display">—</div>
+      <div class="profile-display-name" id="profile-display-name" style="display:none;"></div>
+      <div class="profile-type-row">
+        <span class="profile-content-type-badge" id="profile-content-type">—</span>
+        <span class="profile-stars" id="profile-stars"></span>
+      </div>
+      <span class="profile-ranking" id="profile-ranking"></span>
+      <div class="profile-actions">
+        <button class="profile-follow-btn not-following" id="profile-follow-btn"
+                onclick="followKOL(currentProfileHandle)">🔔 Follow KOL</button>
+        <span class="profile-follower-count" id="profile-follower-count">0 followers on KOL Tracker</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Performance summary -->
+  <div class="profile-section">
+    <div class="profile-period-tabs">
+      <button class="profile-period-tab" onclick="setProfilePeriod('T1D',this)">1D</button>
+      <button class="profile-period-tab active" onclick="setProfilePeriod('T7D',this)">7D</button>
+      <button class="profile-period-tab" onclick="setProfilePeriod('T30D',this)">30D</button>
+      <button class="profile-period-tab" onclick="setProfilePeriod('all',this)">All Time</button>
+    </div>
+    <div class="profile-metrics-grid">
+      <div class="profile-metric-card">
+        <div class="profile-metric-value" id="profile-win-rate" style="color:#555;">—</div>
+        <div class="profile-metric-sub" id="profile-win-detail"></div>
+        <div class="profile-metric-label">Win Rate</div>
+      </div>
+      <div class="profile-metric-card">
+        <div class="profile-metric-value" id="profile-avg-return" style="color:#555;">—</div>
+        <div class="profile-metric-sub" id="profile-return-detail">per scored call</div>
+        <div class="profile-metric-label">Avg Return</div>
+      </div>
+      <div class="profile-metric-card">
+        <div class="profile-metric-value" id="profile-total-calls" style="color:white;">—</div>
+        <div class="profile-metric-sub" id="profile-pending-detail"></div>
+        <div class="profile-metric-label">Calls Tracked</div>
+      </div>
+    </div>
+    <div class="profile-note">Measured over selected period · Prices checked at market close</div>
+  </div>
+
+  <!-- Call breakdown -->
+  <div class="profile-section" style="padding-top:0;">
+    <div class="profile-section-label">Call Breakdown</div>
+    <div class="breakdown-card">
+      <div class="breakdown-row">
+        <span class="breakdown-label" style="color:#00ff88;">BUY</span>
+        <div class="breakdown-track"><div class="breakdown-fill" id="breakdown-buy-bar" style="background:#00ff88;width:0%"></div></div>
+        <span class="breakdown-pct" id="breakdown-buy-pct">0%</span>
+        <span class="breakdown-count" id="breakdown-buy-count">(0 calls)</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="breakdown-label" style="color:#ff4444;">SELL</span>
+        <div class="breakdown-track"><div class="breakdown-fill" id="breakdown-sell-bar" style="background:#ff4444;width:0%"></div></div>
+        <span class="breakdown-pct" id="breakdown-sell-pct">0%</span>
+        <span class="breakdown-count" id="breakdown-sell-count">(0 calls)</span>
+      </div>
+      <div class="breakdown-row" id="breakdown-hold-row">
+        <span class="breakdown-label" style="color:#ffcc00;">HOLD</span>
+        <div class="breakdown-track"><div class="breakdown-fill" id="breakdown-hold-bar" style="background:#ffcc00;width:0%"></div></div>
+        <span class="breakdown-pct" id="breakdown-hold-pct">0%</span>
+        <span class="breakdown-count" id="breakdown-hold-count">(0 calls)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity stats -->
+  <div class="profile-section" style="padding-top:0;">
+    <div class="profile-section-label">Activity</div>
+    <div class="activity-grid">
+      <div class="activity-cell">
+        <div class="activity-value" id="stat-tweets-tracked">—</div>
+        <div class="activity-label">Tweets Tracked</div>
+      </div>
+      <div class="activity-cell">
+        <div class="activity-value" id="stat-active-since">—</div>
+        <div class="activity-label">Active Since</div>
+      </div>
+      <div class="activity-cell">
+        <div class="activity-value" id="stat-avg-calls">—</div>
+        <div class="activity-label">Avg Calls / Week</div>
+      </div>
+      <div class="activity-cell">
+        <div class="activity-value" id="stat-last-active">—</div>
+        <div class="activity-label">Last Active</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Best / worst calls -->
+  <div class="profile-section" style="padding-top:0;">
+    <div class="best-worst-grid">
+      <div>
+        <div class="best-worst-col-label">🏆 Best Calls</div>
+        <div id="best-calls-container"><div class="empty">Loading...</div></div>
+      </div>
+      <div>
+        <div class="best-worst-col-label">💀 Worst Calls</div>
+        <div id="worst-calls-container"><div class="empty">Loading...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Call history -->
+  <div class="profile-section" style="padding-top:0;">
+    <div class="call-history-header">
+      <span class="call-history-title">Call History</span>
+      <span class="call-history-count" id="call-history-count"></span>
+    </div>
+    <div class="filter-pills">
+      <button class="filter-pill active" onclick="filterCallHistory('all',this)">All</button>
+      <button class="filter-pill" onclick="filterCallHistory('buy',this)">BUY</button>
+      <button class="filter-pill" onclick="filterCallHistory('sell',this)">SELL</button>
+      <button class="filter-pill" onclick="filterCallHistory('correct',this)">✅ Correct</button>
+      <button class="filter-pill" onclick="filterCallHistory('wrong',this)">❌ Wrong</button>
+      <button class="filter-pill" onclick="filterCallHistory('pending',this)">⏳ Pending</button>
+    </div>
+    <div id="call-history-loading" style="text-align:center;color:#555;padding:24px;display:none;">Loading calls...</div>
+    <div id="call-history-list"></div>
+    <button class="load-more-btn" id="load-more-btn" style="display:none;" onclick="loadMoreCalls()">Load More</button>
+  </div>
+
+</div><!-- #profile-view -->
+
+<!-- Follow Email Modal -->
+<div id="follow-email-modal">
+  <div class="follow-modal-box">
+    <div class="follow-modal-title" id="follow-modal-kol-name">Follow @—</div>
+    <div class="follow-modal-sub">Enter your email to get weekly updates on their calls</div>
+    <input class="follow-email-input" id="follow-email-input" type="email" placeholder="your@email.com" />
+    <div class="follow-email-error" id="follow-email-error">Please enter a valid email</div>
+    <button class="follow-confirm-btn" onclick="confirmFollow()">Start Following →</button>
+    <span class="follow-cancel-link" onclick="closeFollowModal()">Cancel</span>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
 <script>
   const API = "https://web-production-94c5.up.railway.app";
   let currentPeriod = "T7D";
   let currentAssetDays = 7;
   let searchTimeout = null;
+
+  // ── Profile state ──────────────────────────────────────────
+  let currentProfileHandle    = null;
+  let currentProfilePeriod    = "T7D";
+  let currentProfileFilter    = "all";
+  let currentProfilePage      = 1;
+  let currentProfileTotalPages = 1;
+  let mainScrollPosition      = 0;
+  let kolTrackerEmail = localStorage.getItem("kol_tracker_email") || null;
 
   // ── Load stats ────────────────────────────────────────────
   async function loadStats() {
@@ -868,7 +1135,7 @@
         const rankClass = i < 3 ? "kol-rank top" : "kol-rank";
 
         return `
-          <div class="kol-card" onclick="openKOL('${kol.handle}')">
+          <div class="kol-card" onclick="openProfile('${kol.handle}')">
             <div class="${rankClass}">${i + 1}</div>
             <div class="kol-info">
               <div class="kol-handle">@${kol.handle}</div>
@@ -904,111 +1171,441 @@
     loadTopAssets(daysMap[period] || 7);
   }
 
-  // ── Open KOL detail modal ─────────────────────────────────
-  async function openKOL(handle, period) {
-    if (!period) period = "all";  // default to all-time view so detail is never empty
-    const overlay = document.getElementById("kol-modal");
-    const content = document.getElementById("kol-modal-content");
-    content.innerHTML = '<div class="loading">Loading...</div>';
-    overlay.classList.add("visible");
+  // ── showToast ──────────────────────────────────────────────
+  function showToast(message, type = "success", duration = 3000) {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.style.borderLeft = type === "error" ? "3px solid #ff4444" : "3px solid #00ff88";
+    toast.classList.add("show");
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => toast.classList.remove("show"), duration);
+  }
+
+  // ── openProfile ────────────────────────────────────────────
+  async function openProfile(handle) {
+    currentProfileHandle = handle;
+    currentProfilePeriod = currentPeriod;
+    currentProfileFilter = "all";
+    currentProfilePage   = 1;
+    mainScrollPosition   = window.scrollY;
+
+    const pv = document.getElementById("profile-view");
+    pv.style.display = "block";
+    // Force reflow so transition plays
+    pv.getBoundingClientRect();
+    pv.classList.add("visible");
+    pv.scrollTop = 0;
+
+    // Reset filter pills to "All"
+    document.querySelectorAll(".filter-pill").forEach(p => p.classList.remove("active"));
+    document.querySelector(".filter-pill")?.classList.add("active");
+
+    // Set correct period tab
+    document.querySelectorAll(".profile-period-tab").forEach(t => {
+      t.classList.toggle("active", t.textContent.trim() === _periodLabel(currentProfilePeriod));
+    });
+
+    history.pushState({type: "profile", handle}, "", "/kol/" + handle);
+
+    // Reset loading state
+    document.getElementById("profile-win-rate").textContent = "—";
+    document.getElementById("profile-avg-return").textContent = "—";
+    document.getElementById("profile-total-calls").textContent = "—";
+    document.getElementById("call-history-list").innerHTML = '<div class="loading">Loading...</div>';
+    document.getElementById("load-more-btn").style.display = "none";
 
     try {
-      const periodParam = `?period=${period}`;
-      const res = await axios.get(`${API}/kols/${handle}${periodParam}`);
-      const k   = res.data;
-
-      const scoresHtml = ["T1D","T7D","T30D"].map(p => {
-        const s = k.scores[p];
-        return `
-          <div class="score-card">
-            <div class="score-period">${p}</div>
-            <div class="score-winrate">${s.win_rate}%</div>
-            <div class="score-calls">${s.total_calls} predictions</div>
-          </div>`;
-      }).join("");
-
-      // Period selector pills
-      const periodSelectorHtml = `
-        <div class="modal-period-selector">
-          ${[{key:"all",label:"All"},{key:"T1D",label:"1D"},{key:"T7D",label:"7D"},{key:"T30D",label:"30D"}].map(p => `
-            <button class="modal-period-btn ${period === p.key ? "active" : ""}"
-                    onclick="openKOL('${handle}', '${p.key}')">${p.label}</button>`).join("")}
-        </div>`;
-
-      const recsHtml = k.recommendations.length
-        ? k.recommendations.map(r => {
-            const dirClass = ["BUY","LONG"].includes(r.direction) ? "BUY"
-                           : ["SELL","SHORT"].includes(r.direction) ? "SELL"
-                           : r.direction;
-            const sig = r.signal_text
-              ? (r.signal_text.length > 80 ? r.signal_text.slice(0,80) + "…" : r.signal_text)
-              : "—";
-            const dateStr = r.posted_at_formatted
-              ? `${r.posted_at_formatted}${r.days_since_call != null ? " · " + r.days_since_call + " days ago" : ""}`
-              : "";
-
-            let priceLine = `<span style="color:#555">—</span>`;
-            if (r.price_change_pct != null) {
-              const col  = r.price_change_pct >= 0 ? "#00ff88" : "#ff4444";
-              const sign = r.price_change_pct >= 0 ? "+" : "";
-              priceLine  = `<span class="price-change" style="color:${col}">${sign}${r.price_change_pct}%</span>`;
-            }
-
-            const statusHtml = r.call_status === "correct"
-              ? `<span class="status-badge status-correct">✅ Correct</span>`
-              : r.call_status === "wrong"
-                ? `<span class="status-badge status-wrong">❌ Wrong</span>`
-                : `<span class="status-badge status-pending">⏳ Pending</span>`;
-
-            return `
-              <div class="rec-item">
-                <div>
-                  <div class="rec-ticker">$${r.ticker}</div>
-                  <div class="rec-signal">${sig}</div>
-                  ${dateStr ? `<div class="rec-date">${dateStr}</div>` : ""}
-                </div>
-                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
-                  <span class="direction-badge ${dirClass}">${r.direction}</span>
-                  ${priceLine}
-                  ${statusHtml}
-                </div>
-              </div>`;
-          }).join("")
-        : '<div class="empty">No predictions found for this period.</div>';
-
-      content.innerHTML = `
-        <div class="modal-header">
-          <div>
-            <div class="modal-handle">@${k.handle}</div>
-            ${periodSelectorHtml}
-          </div>
-          <button class="modal-close" onclick="document.getElementById('kol-modal').classList.remove('visible')">✕</button>
-        </div>
-        <div class="score-grid">${scoresHtml}</div>
-        <div class="recs-title">Predictions</div>
-        ${recsHtml}`;
-
+      const em  = kolTrackerEmail || "";
+      const res = await axios.get(
+        `${API}/kols/${handle}?period=${currentProfilePeriod}&email=${encodeURIComponent(em)}`
+      );
+      populateProfile(res.data);
     } catch(e) {
-      content.innerHTML = '<div class="empty">Failed to load KOL details.</div>';
+      document.getElementById("call-history-list").innerHTML =
+        '<div class="empty">Failed to load profile.</div>';
     }
   }
 
-  function closeModal(e) {
-    if (e.target.id === "kol-modal") {
-      document.getElementById("kol-modal").classList.remove("visible");
+  function _periodLabel(p) {
+    return {T1D:"1D", T7D:"7D", T30D:"30D", all:"All Time"}[p] || "7D";
+  }
+
+  // ── populateProfile ────────────────────────────────────────
+  function populateProfile(data) {
+    const h = data.handle || "";
+
+    // Header
+    document.getElementById("profile-header-handle").textContent = "@" + h;
+    document.getElementById("profile-avatar").textContent = h[0]?.toUpperCase() || "?";
+    document.getElementById("profile-handle-display").textContent = "@" + h;
+
+    const dn = document.getElementById("profile-display-name");
+    if (data.display_name && data.display_name !== h) {
+      dn.textContent = data.display_name;
+      dn.style.display = "";
+    } else {
+      dn.style.display = "none";
+    }
+
+    document.getElementById("profile-content-type").textContent =
+      data.content_type || "Stock Trader";
+
+    // Stars
+    const sr = data.star_rating || 0;
+    document.getElementById("profile-stars").textContent =
+      "★".repeat(sr) + "☆".repeat(5 - sr);
+    document.getElementById("profile-stars").style.color = "#00ff88";
+
+    document.getElementById("profile-ranking").textContent = data.rank
+      ? `#${data.rank} of ${data.total_kols} KOLs tracked`
+      : "Not yet ranked";
+
+    // Follow button
+    const btn = document.getElementById("profile-follow-btn");
+    if (data.is_followed) {
+      btn.textContent = "✓ Following";
+      btn.className = "profile-follow-btn following";
+    } else {
+      btn.textContent = "🔔 Follow KOL";
+      btn.className = "profile-follow-btn not-following";
+    }
+    document.getElementById("profile-follower-count").textContent =
+      (data.follower_count || 0) + " followers on KOL Tracker";
+
+    // Performance
+    _updatePerformance(data);
+
+    // Call breakdown
+    const bd = data.call_breakdown || {};
+    document.getElementById("breakdown-buy-bar").style.width   = (bd.buy_pct  || 0) + "%";
+    document.getElementById("breakdown-sell-bar").style.width  = (bd.sell_pct || 0) + "%";
+    document.getElementById("breakdown-hold-bar").style.width  = (bd.hold_pct || 0) + "%";
+    document.getElementById("breakdown-buy-pct").textContent   = (bd.buy_pct  || 0) + "%";
+    document.getElementById("breakdown-sell-pct").textContent  = (bd.sell_pct || 0) + "%";
+    document.getElementById("breakdown-hold-pct").textContent  = (bd.hold_pct || 0) + "%";
+    document.getElementById("breakdown-buy-count").textContent  = `(${bd.buy_count  || 0} calls)`;
+    document.getElementById("breakdown-sell-count").textContent = `(${bd.sell_count || 0} calls)`;
+    document.getElementById("breakdown-hold-count").textContent = `(${bd.hold_count || 0} calls)`;
+    document.getElementById("breakdown-hold-row").style.display =
+      (bd.hold_count || 0) > 0 ? "" : "none";
+
+    // Activity
+    document.getElementById("stat-tweets-tracked").textContent = data.total_tweets_tracked ?? "—";
+    document.getElementById("stat-active-since").textContent   = data.active_since  || "—";
+    document.getElementById("stat-avg-calls").textContent      = data.avg_calls_per_week ?? "—";
+    document.getElementById("stat-last-active").textContent    = data.last_active   || "—";
+
+    // Best / worst calls
+    _renderBestWorst("best-calls-container",  data.best_calls  || [], true);
+    _renderBestWorst("worst-calls-container", data.worst_calls || [], false);
+
+    // Call history
+    _renderCallHistory(data.call_history);
+  }
+
+  function _updatePerformance(data) {
+    const wr = data.win_rate;
+    const wrEl = document.getElementById("profile-win-rate");
+    if (wr == null) {
+      wrEl.textContent = "—";
+      wrEl.style.color = "#555";
+    } else {
+      wrEl.textContent = wr + "%";
+      wrEl.style.color = wr >= 60 ? "#00ff88" : wr >= 40 ? "#ffcc00" : "#ff4444";
+    }
+    document.getElementById("profile-win-detail").textContent =
+      `${data.correct_calls || 0} correct · ${data.wrong_calls || 0} wrong`;
+
+    const ar = data.avg_return_pct;
+    const arEl = document.getElementById("profile-avg-return");
+    if (ar == null) {
+      arEl.textContent = "—";
+      arEl.style.color = "#555";
+    } else {
+      arEl.textContent = (ar >= 0 ? "+" : "") + ar + "%";
+      arEl.style.color = ar >= 0 ? "#00ff88" : "#ff4444";
+    }
+
+    document.getElementById("profile-total-calls").textContent = data.total_calls ?? "—";
+    document.getElementById("profile-pending-detail").textContent =
+      (data.pending_calls || 0) > 0 ? `${data.pending_calls} pending scoring` : "";
+  }
+
+  function _renderBestWorst(containerId, calls, isBest) {
+    const el = document.getElementById(containerId);
+    if (!calls.length) {
+      el.innerHTML = '<div class="empty" style="padding:20px;text-align:center;color:#555;">Not enough scored calls yet</div>';
+      return;
+    }
+    el.innerHTML = calls.map(c => {
+      const pct = c.price_change_pct;
+      const col = isBest ? "#00ff88" : "#ff4444";
+      const pctStr = pct != null ? (pct >= 0 ? "+" : "") + pct + "%" : "—";
+      const badge = isBest
+        ? `<span class="status-badge status-correct">✅ Correct</span>`
+        : `<span class="status-badge status-wrong">❌ Wrong</span>`;
+      const dirClass = ["BUY","LONG"].includes(c.direction) ? "BUY"
+                     : ["SELL","SHORT"].includes(c.direction) ? "SELL" : c.direction;
+      const sig = c.signal_text
+        ? (c.signal_text.length > 80 ? c.signal_text.slice(0,80) + "…" : c.signal_text)
+        : "—";
+      const dateStr = [c.posted_at_formatted, c.days_since_call != null ? c.days_since_call + " days ago" : ""]
+        .filter(Boolean).join(" · ");
+      return `
+        <div class="bw-call-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:800;font-size:18px;color:white;">$${c.ticker}</span>
+            <span class="direction-badge ${dirClass}">${c.direction}</span>
+          </div>
+          <div style="color:#888;font-size:12px;margin:4px 0;">${sig}</div>
+          ${dateStr ? `<div style="color:#555;font-size:12px;">${dateStr}</div>` : ""}
+          <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+            <span class="bw-return" style="color:${col};">${pctStr}</span>
+            ${badge}
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  function _renderCallHistory(hist) {
+    if (!hist) return;
+    currentProfileTotalPages = hist.total_pages || 1;
+
+    document.getElementById("call-history-count").textContent =
+      `(${hist.total_count} calls)`;
+
+    const list = document.getElementById("call-history-list");
+    if (!hist.calls || !hist.calls.length) {
+      list.innerHTML = '<div class="empty" style="padding:32px;text-align:center;color:#555;">No calls found for this filter</div>';
+      document.getElementById("load-more-btn").style.display = "none";
+      return;
+    }
+
+    list.innerHTML = hist.calls.map(r => _callRowHtml(r)).join("");
+
+    document.getElementById("load-more-btn").style.display =
+      hist.page < hist.total_pages ? "block" : "none";
+  }
+
+  function _callRowHtml(r) {
+    const dirClass = ["BUY","LONG"].includes(r.direction) ? "BUY"
+                   : ["SELL","SHORT"].includes(r.direction) ? "SELL" : r.direction;
+    const sig = r.signal_text
+      ? (r.signal_text.length > 80 ? r.signal_text.slice(0,80) + "…" : r.signal_text)
+      : "—";
+    const dateStr = [r.posted_at_formatted, r.days_since_call != null ? r.days_since_call + " days ago" : ""]
+      .filter(Boolean).join(" · ");
+
+    let priceHtml = `<span style="color:#555;" class="call-price-change">—</span>`;
+    if (r.price_change_pct != null) {
+      const col  = r.price_change_pct >= 0 ? "#00ff88" : "#ff4444";
+      const sign = r.price_change_pct >= 0 ? "+" : "";
+      priceHtml  = `<span class="call-price-change" style="color:${col};">${sign}${r.price_change_pct}%</span>`;
+    }
+
+    const statusHtml = r.call_status === "correct"
+      ? `<span class="status-badge status-correct">✅ Correct</span>`
+      : r.call_status === "wrong"
+        ? `<span class="status-badge status-wrong">❌ Wrong</span>`
+        : `<span class="status-badge status-pending">⏳ Pending</span>`;
+
+    return `
+      <div class="call-row">
+        <div class="call-row-left">
+          <div class="call-ticker">$${r.ticker}</div>
+          <div class="call-signal">${sig}</div>
+          ${dateStr ? `<div class="call-date">${dateStr}</div>` : ""}
+        </div>
+        <div class="call-row-right">
+          <span class="direction-badge ${dirClass}">${r.direction}</span>
+          ${priceHtml}
+          ${statusHtml}
+        </div>
+      </div>`;
+  }
+
+  // ── setProfilePeriod ───────────────────────────────────────
+  async function setProfilePeriod(period, btn) {
+    currentProfilePeriod = period;
+    currentProfilePage   = 1;
+    currentProfileFilter = "all";
+
+    document.querySelectorAll(".profile-period-tab").forEach(t => t.classList.remove("active"));
+    if (btn) btn.classList.add("active");
+
+    document.querySelectorAll(".filter-pill").forEach(p => p.classList.remove("active"));
+    document.querySelector(".filter-pill")?.classList.add("active");
+
+    try {
+      const em  = kolTrackerEmail || "";
+      const res = await axios.get(
+        `${API}/kols/${currentProfileHandle}?period=${period}&email=${encodeURIComponent(em)}`
+      );
+      _updatePerformance(res.data);
+      _renderCallHistory(res.data.call_history);
+    } catch(e) {
+      document.getElementById("call-history-list").innerHTML =
+        '<div class="empty">Failed to load data.</div>';
     }
   }
 
+  // ── filterCallHistory ─────────────────────────────────────
+  async function filterCallHistory(filter, btn) {
+    currentProfileFilter = filter;
+    currentProfilePage   = 1;
+
+    document.querySelectorAll(".filter-pill").forEach(p => p.classList.remove("active"));
+    if (btn) btn.classList.add("active");
+
+    const loading = document.getElementById("call-history-loading");
+    loading.style.display = "block";
+    document.getElementById("call-history-list").innerHTML = "";
+
+    try {
+      const em  = kolTrackerEmail || "";
+      const res = await axios.get(
+        `${API}/kols/${currentProfileHandle}?period=${currentProfilePeriod}&filter=${filter}&page=1&email=${encodeURIComponent(em)}`
+      );
+      loading.style.display = "none";
+      _renderCallHistory(res.data.call_history);
+    } catch(e) {
+      loading.style.display = "none";
+      document.getElementById("call-history-list").innerHTML =
+        '<div class="empty">Failed to load calls.</div>';
+    }
+  }
+
+  // ── loadMoreCalls ─────────────────────────────────────────
+  async function loadMoreCalls() {
+    currentProfilePage += 1;
+    try {
+      const em  = kolTrackerEmail || "";
+      const res = await axios.get(
+        `${API}/kols/${currentProfileHandle}?period=${currentProfilePeriod}&filter=${currentProfileFilter}&page=${currentProfilePage}&email=${encodeURIComponent(em)}`
+      );
+      const hist = res.data.call_history;
+      if (hist && hist.calls) {
+        const list = document.getElementById("call-history-list");
+        list.insertAdjacentHTML("beforeend", hist.calls.map(r => _callRowHtml(r)).join(""));
+      }
+      currentProfileTotalPages = hist?.total_pages || 1;
+      document.getElementById("load-more-btn").style.display =
+        currentProfilePage >= currentProfileTotalPages ? "none" : "block";
+    } catch(e) {
+      showToast("Failed to load more calls.", "error");
+    }
+  }
+
+  // ── goBack ────────────────────────────────────────────────
+  function goBack() {
+    const pv = document.getElementById("profile-view");
+    pv.classList.remove("visible");
+    setTimeout(() => {
+      pv.style.display = "none";
+      currentProfileHandle = null;
+    }, 260);
+    history.pushState({type: "home"}, "", "/");
+    window.scrollTo(0, mainScrollPosition);
+  }
+
+  // ── handleShare ───────────────────────────────────────────
+  async function handleShare() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      showToast("🔗 Link copied to clipboard!");
+    } catch(e) {
+      showToast("Could not copy link.", "error");
+    }
+  }
+
+  // ── followKOL ─────────────────────────────────────────────
+  function followKOL(handle) {
+    if (!kolTrackerEmail) {
+      document.getElementById("follow-modal-kol-name").textContent = "Follow @" + handle;
+      document.getElementById("follow-email-modal").classList.add("visible");
+      document.getElementById("follow-email-input").value = "";
+      document.getElementById("follow-email-error").style.display = "none";
+      return;
+    }
+    submitFollow(handle, kolTrackerEmail);
+  }
+
+  // ── confirmFollow ─────────────────────────────────────────
+  async function confirmFollow() {
+    const email = document.getElementById("follow-email-input").value.trim();
+    const errEl = document.getElementById("follow-email-error");
+    if (!email || !email.includes("@") || !email.includes(".")) {
+      errEl.style.display = "block";
+      return;
+    }
+    errEl.style.display = "none";
+    localStorage.setItem("kol_tracker_email", email);
+    kolTrackerEmail = email;
+    closeFollowModal();
+    submitFollow(currentProfileHandle, email);
+  }
+
+  // ── submitFollow ──────────────────────────────────────────
+  async function submitFollow(handle, email) {
+    try {
+      const res = await axios.post(
+        `${API}/follow-kol?email=${encodeURIComponent(email)}&kol_handle=${encodeURIComponent(handle)}`
+      );
+      const btn = document.getElementById("profile-follow-btn");
+      if (res.data.status === "followed") {
+        btn.textContent = "✓ Following";
+        btn.className   = "profile-follow-btn following";
+        const fcEl = document.getElementById("profile-follower-count");
+        const cur  = parseInt(fcEl.textContent) || 0;
+        fcEl.textContent = (cur + 1) + " followers on KOL Tracker";
+        showToast(`✅ Following @${handle}! Check your inbox.`);
+      } else {
+        btn.textContent = "✓ Following";
+        btn.className   = "profile-follow-btn following";
+        showToast(`Already following @${handle}`);
+      }
+    } catch(e) {
+      showToast("Something went wrong. Try again.", "error");
+    }
+  }
+
+  // ── unfollowKOL ───────────────────────────────────────────
+  async function unfollowKOL(handle) {
+    if (!kolTrackerEmail) return;
+    try {
+      await axios.post(
+        `${API}/unfollow-kol?kol_handle=${encodeURIComponent(handle)}&email=${encodeURIComponent(kolTrackerEmail)}`
+      );
+      const btn = document.getElementById("profile-follow-btn");
+      btn.textContent = "🔔 Follow KOL";
+      btn.className   = "profile-follow-btn not-following";
+      const fcEl = document.getElementById("profile-follower-count");
+      const cur  = parseInt(fcEl.textContent) || 1;
+      fcEl.textContent = Math.max(0, cur - 1) + " followers on KOL Tracker";
+      showToast(`Unfollowed @${handle}`);
+    } catch(e) {
+      showToast("Something went wrong.", "error");
+    }
+  }
+
+  // ── closeFollowModal ──────────────────────────────────────
+  function closeFollowModal() {
+    document.getElementById("follow-email-modal").classList.remove("visible");
+    document.getElementById("follow-email-input").value = "";
+    document.getElementById("follow-email-error").style.display = "none";
+  }
+
+  // ── closeAssetModal ────────────────────────────────────────
   function closeAssetModal(e) {
     if (e.target.id === "asset-modal") {
       document.getElementById("asset-modal").classList.remove("visible");
     }
   }
 
-  // Close asset modal, then open KOL detail modal
-  function closeAndOpenKOL(handle) {
+  // Close asset modal, then open KOL profile
+  function openKOLFromAsset(handle) {
     document.getElementById("asset-modal").classList.remove("visible");
-    openKOL(handle);
+    setTimeout(() => openProfile(handle), 150);
   }
 
   // ── Search ────────────────────────────────────────────────
@@ -1037,7 +1634,7 @@
         resultsDiv.innerHTML = all.map(item => {
           if (item.type === "kol") {
             return `
-              <div class="search-result-item" onclick="openKOL('${item.handle}')">
+              <div class="search-result-item" onclick="openProfile('${item.handle}')">
                 <div class="search-result-left">
                   <div class="search-result-handle">@${item.handle}</div>
                   <div class="search-result-signal">${item.content_type}</div>
@@ -1046,7 +1643,7 @@
               </div>`;
           } else {
             return `
-              <div class="search-result-item" onclick="openKOL('${item.handle}')">
+              <div class="search-result-item" onclick="openProfile('${item.handle}')">
                 <div class="search-result-left">
                   <div class="search-result-handle">@${item.handle} → $${item.ticker}</div>
                   <div class="search-result-signal">${item.signal_text || "—"}</div>
@@ -1194,7 +1791,7 @@
           <div class="rec-item">
             <div>
               <div style="font-weight:700;color:#00ff88;cursor:pointer;font-size:14px;"
-                   onclick="closeAndOpenKOL('${p.kol_handle}')">@${p.kol_handle}</div>
+                   onclick="openKOLFromAsset('${p.kol_handle}')">@${p.kol_handle}</div>
               <div class="rec-signal">${sig}</div>
               ${dateStr ? `<div class="rec-date">${dateStr}</div>` : ""}
             </div>
@@ -1233,6 +1830,28 @@
     loadLeaderboard(currentPeriod);
     loadTopAssets(currentAssetDays);
   }, 5 * 60 * 1000);
+
+  // ── URL routing ───────────────────────────────────────────
+  document.addEventListener("DOMContentLoaded", () => {
+    const path = window.location.pathname;
+    const m    = path.match(/^\/kol\/(.+)$/);
+    if (m) {
+      openProfile(decodeURIComponent(m[1]));
+    }
+  });
+
+  window.addEventListener("popstate", (e) => {
+    if (e.state?.type === "profile") {
+      openProfile(e.state.handle);
+    } else {
+      const pv = document.getElementById("profile-view");
+      if (pv.classList.contains("visible")) {
+        pv.classList.remove("visible");
+        setTimeout(() => { pv.style.display = "none"; currentProfileHandle = null; }, 260);
+        window.scrollTo(0, mainScrollPosition);
+      }
+    }
+  });
 </script>
 </body>
 </html>
