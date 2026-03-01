@@ -143,6 +143,12 @@ def get_engine():
     db_url = os.getenv("DATABASE_URL", "sqlite:///kol_tracker.db")
     if db_url.startswith("postgresql"):
         return create_engine(db_url, pool_pre_ping=True, echo=False)
+    # For SQLite, ensure the parent directory exists (needed for Railway volumes)
+    if db_url.startswith("sqlite:///"):
+        db_path = db_url[len("sqlite:///"):]
+        parent  = os.path.dirname(db_path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
     return create_engine(db_url, echo=False)
 
 def get_session():
