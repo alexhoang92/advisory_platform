@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, BigInteger, String, Text, Boolean, DateTime, Float, Enum
+from sqlalchemy import create_engine, Column, Integer, BigInteger, String, Text, Boolean, DateTime, Float, Enum, UniqueConstraint, Index
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
 import os
@@ -110,6 +110,30 @@ class Waitlist(Base):
     id        = Column(Integer, primary_key=True, autoincrement=True)
     email     = Column(String(255), unique=True, nullable=False)
     joined_at = Column(DateTime, default=datetime.utcnow)
+
+# ── Table 9: KOL Follows ───────────────────────────────────────
+class KOLFollow(Base):
+    __tablename__ = "kol_follows"
+
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    email       = Column(String(255), nullable=False)
+    kol_handle  = Column(String(100), nullable=False)
+    followed_at = Column(DateTime, default=datetime.utcnow)
+    is_active   = Column(Boolean, default=True)
+
+    __table_args__ = (
+        UniqueConstraint('email', 'kol_handle', name='uq_email_kol_handle'),
+    )
+
+
+# ── Performance indexes ────────────────────────────────────────
+Index('idx_rec_posted_at',    Recommendation.posted_at)
+Index('idx_rec_ticker',       Recommendation.ticker)
+Index('idx_rec_kol_id',       Recommendation.kol_id)
+Index('idx_raw_is_parsed',    RawTweet.is_parsed)
+Index('idx_kol_follow_email', KOLFollow.email)
+Index('idx_kol_follow_handle',KOLFollow.kol_handle)
+
 
 # ── Database connection helpers ────────────────────────────────
 def get_engine():
