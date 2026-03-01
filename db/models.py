@@ -22,6 +22,9 @@ class KOL(Base):
     is_active        = Column(Boolean, default=True)
     last_crawled_at  = Column(DateTime, nullable=True)
     created_at       = Column(DateTime, default=datetime.utcnow)
+    # Baseline follower count for social proof — assigned once randomly (10–20)
+    # Real KOLFollow rows are added on top at display time
+    follower_base    = Column(Integer, default=0, nullable=False)
 
 # ── Table 2: Raw Tweets ────────────────────────────────────────
 class RawTweet(Base):

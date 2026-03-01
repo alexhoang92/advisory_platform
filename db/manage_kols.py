@@ -1,6 +1,7 @@
 import sys
 import os
 import csv
+import random
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from datetime import datetime, timezone
@@ -29,7 +30,9 @@ def add_single_kol(handle: str, display_name: str = None,
         content_type     = content_type,
         prediction_style = prediction_style,
         is_active        = True,
-        created_at       = datetime.now(timezone.utc)
+        created_at       = datetime.now(timezone.utc),
+        # Assign a fixed random baseline for follower social proof (10–20)
+        follower_base    = random.randint(10, 20),
     )
     session.add(kol)
     session.commit()
