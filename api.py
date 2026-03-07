@@ -139,29 +139,54 @@ def _price_change_and_status(direction: str, price_at_call, current_price):
     return price_change_pct, call_status
 
 
+# ── Leaderboard cache (5-minute TTL) ───────────────────────────
+_leaderboard_cache: dict = {}  # {period: {"data": list, "ts": datetime}}
+
 # ── GET /kols ──────────────────────────────────────────────────
 # Returns leaderboard — all KOLs with their scores
 @app.get("/kols")
 def get_kols(period: str = "T7D"):
+    now = datetime.utcnow()
+    cached = _leaderboard_cache.get(period)
+    if cached and (now - cached["ts"]).total_seconds() < 300:
+        return cached["data"]
+
     session = get_session()
 
-    kols   = session.query(KOL).filter_by(is_active=True).all()
+    # 1 query: all active KOLs
+    kols    = session.query(KOL).filter_by(is_active=True).all()
+    kol_ids = [k.id for k in kols]
+
+    # 2 query: scores for requested period (batch)
+    scores     = session.query(KOLScore).filter(
+        KOLScore.kol_id.in_(kol_ids),
+        KOLScore.period == period
+    ).all()
+    score_map  = {s.kol_id: s for s in scores}
+
+    # 3 query: recommendation counts per KOL (aggregated)
+    rec_rows   = session.query(
+        Recommendation.kol_id,
+        func.count(Recommendation.id)
+    ).filter(Recommendation.kol_id.in_(kol_ids)).group_by(Recommendation.kol_id).all()
+    rec_map    = {kol_id: cnt for kol_id, cnt in rec_rows}
+
+    # 4 query: real follow counts per handle (aggregated)
+    handles    = [k.handle for k in kols]
+    follow_rows = session.query(
+        KOLFollow.kol_handle,
+        func.count(KOLFollow.id)
+    ).filter(
+        KOLFollow.kol_handle.in_(handles),
+        KOLFollow.is_active == True
+    ).group_by(KOLFollow.kol_handle).all()
+    follow_map = {h: cnt for h, cnt in follow_rows}
+
     result = []
-
     for kol in kols:
-        score = session.query(KOLScore).filter_by(
-            kol_id=kol.id,
-            period=period
-        ).first()
-
-        rec_count = session.query(Recommendation).filter_by(
-            kol_id=kol.id
-        ).count()
-
-        real_follows = session.query(KOLFollow).filter_by(
-            kol_handle=kol.handle, is_active=True
-        ).count()
-        displayed_follows = kol.follower_base + real_follows
+        score            = score_map.get(kol.id)
+        rec_count        = rec_map.get(kol.id, 0)
+        displayed_follows = kol.follower_base + follow_map.get(kol.handle, 0)
 
         result.append({
             "id"            : kol.id,
@@ -181,10 +206,10 @@ def get_kols(period: str = "T7D"):
             }
         })
 
-    # Sort by win rate descending
     result.sort(key=lambda x: x["score"]["win_rate"], reverse=True)
-
     session.close()
+
+    _leaderboard_cache[period] = {"data": result, "ts": now}
     return result
 
 
