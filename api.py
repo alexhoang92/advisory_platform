@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import os
 import math
 import threading
+import pandas as pd
 import yfinance as yf
 from dotenv import load_dotenv
 import resend
@@ -102,24 +103,42 @@ ticker_price_cache: dict = {}
 
 def _refresh_price_cache(tickers: set):
     """Fetch current prices for tickers not in cache or with expired (>60 min) entries.
-    Never called inside a per-recommendation loop — always batched first."""
+    Uses a single yf.download() batch call instead of one call per ticker."""
     now_dt = datetime.utcnow()
     uncached = [
         t for t in tickers
         if t not in ticker_price_cache
         or (now_dt - ticker_price_cache[t]["fetched_at"]).total_seconds() >= 3600
     ]
-    for ticker in uncached:
-        try:
-            stock = yf.Ticker(ticker)
-            price = stock.fast_info.last_price
-            if price:
-                ticker_price_cache[ticker] = {
-                    "price": round(float(price), 2),
+    if not uncached:
+        return
+    try:
+        raw = yf.download(uncached, period="2d", progress=False, auto_adjust=True, threads=True)
+        if raw.empty:
+            return
+        close = raw["Close"]
+        if isinstance(close, pd.Series):
+            # Single ticker — close is a Series
+            col = close.dropna()
+            if not col.empty:
+                ticker_price_cache[uncached[0]] = {
+                    "price": round(float(col.iloc[-1]), 2),
                     "fetched_at": now_dt,
                 }
-        except Exception:
-            pass
+        else:
+            # Multiple tickers — close is a DataFrame with ticker columns
+            for ticker in uncached:
+                try:
+                    col = close[ticker].dropna()
+                    if not col.empty:
+                        ticker_price_cache[ticker] = {
+                            "price": round(float(col.iloc[-1]), 2),
+                            "fetched_at": now_dt,
+                        }
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
 
 def _price_change_and_status(direction: str, price_at_call, current_price):
@@ -141,6 +160,11 @@ def _price_change_and_status(direction: str, price_at_call, current_price):
 
 # ── Leaderboard cache (5-minute TTL) ───────────────────────────
 _leaderboard_cache: dict = {}  # {period: {"data": list, "ts": datetime}}
+
+# ── KOL profile cache (2-minute TTL) ───────────────────────────
+# Caches expensive rec_computed + activity stats per handle.
+# is_followed and pagination are always computed fresh.
+_kol_profile_cache: dict = {}  # {handle: {"data": dict, "ts": datetime}}
 
 # ── GET /kols ──────────────────────────────────────────────────
 # Returns leaderboard — all KOLs with their scores
@@ -233,11 +257,10 @@ def get_kol_detail(
     now   = datetime.utcnow()
     today = now.date()
 
-    # ── IDENTITY ──────────────────────────────────────────────
+    # ── IDENTITY (always fresh — user-specific) ────────────────
     real_follows   = session.query(KOLFollow).filter_by(
         kol_handle=handle, is_active=True
     ).count()
-    # displayed_follows = fixed baseline (10–20) + real follows
     follower_count = kol.follower_base + real_follows
     is_followed = False
     if email:
@@ -249,83 +272,106 @@ def get_kol_detail(
         kol.last_crawled_at.strftime("%b %d, %Y") if kol.last_crawled_at else None
     )
 
-    # ── ACTIVITY STATS ─────────────────────────────────────────
-    total_tweets   = session.query(RawTweet).filter_by(kol_id=kol.id).count()
-    first_tweet_dt = session.query(func.min(RawTweet.posted_at)).filter(
-        RawTweet.kol_id == kol.id
-    ).scalar()
-    last_tweet_dt  = session.query(func.max(RawTweet.posted_at)).filter(
-        RawTweet.kol_id == kol.id
-    ).scalar()
+    # ── CHECK PROFILE CACHE (2-min TTL) ───────────────────────
+    _cached = _kol_profile_cache.get(handle)
+    if _cached and (now - _cached["ts"]).total_seconds() < 120:
+        _cd            = _cached["data"]
+        rec_computed   = _cd["rec_computed"]
+        total_tweets   = _cd["total_tweets"]
+        first_tweet_dt = _cd["first_tweet_dt"]
+        last_tweet_dt  = _cd["last_tweet_dt"]
+        buy_count_all  = _cd["buy_count_all"]
+        sell_count_all = _cd["sell_count_all"]
+        hold_count_all = _cd["hold_count_all"]
+    else:
+        # ── ACTIVITY STATS — 1 query instead of 3 ─────────────
+        total_tweets, first_tweet_dt, last_tweet_dt = session.query(
+            func.count(RawTweet.id),
+            func.min(RawTweet.posted_at),
+            func.max(RawTweet.posted_at),
+        ).filter(RawTweet.kol_id == kol.id).one()
 
+        # ── ALL-TIME RECS ──────────────────────────────────────
+        all_recs = session.query(Recommendation).filter_by(kol_id=kol.id).all()
+
+        buy_count_all  = sum(1 for r in all_recs if r.direction in ("BUY",  "LONG"))
+        sell_count_all = sum(1 for r in all_recs if r.direction in ("SELL", "SHORT"))
+        hold_count_all = sum(1 for r in all_recs if r.direction == "HOLD")
+
+        # ── T0 SNAPSHOTS (batch) ───────────────────────────────
+        all_rec_ids = [r.id for r in all_recs]
+        t0_snaps: dict = {}
+        if all_rec_ids:
+            for s in session.query(PriceSnapshot).filter(
+                PriceSnapshot.recommendation_id.in_(all_rec_ids),
+                PriceSnapshot.snapshot_type == "T0",
+            ).all():
+                t0_snaps[s.recommendation_id] = s.price
+
+        # ── CURRENT PRICES — single batch yfinance call ────────
+        tickers_with_t0 = {r.ticker for r in all_recs if t0_snaps.get(r.id) is not None}
+        _refresh_price_cache(tickers_with_t0)
+
+        # ── COMPUTE STATUS FOR ALL RECS (one pass) ────────────
+        rec_computed = []
+        for r in all_recs:
+            price_at_call = t0_snaps.get(r.id)
+            current_price = (
+                ticker_price_cache.get(r.ticker, {}).get("price")
+                if price_at_call else None
+            )
+            pct, status = _price_change_and_status(r.direction, price_at_call, current_price)
+            posted_date = r.posted_at.date() if r.posted_at else None
+            days_since  = (today - posted_date).days if posted_date else None
+
+            rec_computed.append({
+                "id"                  : r.id,
+                "ticker"              : r.ticker,
+                "direction"           : r.direction,
+                "conviction"          : r.conviction,
+                "posted_at_dt"        : r.posted_at,
+                "posted_at_formatted" : r.posted_at.strftime("%b %d, %Y") if r.posted_at else None,
+                "days_since_call"     : days_since,
+                "price_at_call"       : price_at_call,
+                "current_price"       : current_price,
+                "price_change_pct"    : pct,
+                "call_status"         : status,
+                "signal_text"         : (r.signal_text[:100] if r.signal_text else None),
+            })
+
+        _kol_profile_cache[handle] = {
+            "ts": now,
+            "data": {
+                "rec_computed"  : rec_computed,
+                "total_tweets"  : total_tweets,
+                "first_tweet_dt": first_tweet_dt,
+                "last_tweet_dt" : last_tweet_dt,
+                "buy_count_all" : buy_count_all,
+                "sell_count_all": sell_count_all,
+                "hold_count_all": hold_count_all,
+            },
+        }
+
+    # ── DERIVED ACTIVITY FIELDS ────────────────────────────────
     active_since = first_tweet_dt.strftime("%b %Y") if first_tweet_dt else None
     if last_tweet_dt:
         days_ago    = (now - last_tweet_dt).days
         last_active = (
-            f"{days_ago} days ago"
-            if days_ago < 30
+            f"{days_ago} days ago" if days_ago < 30
             else last_tweet_dt.strftime("%b %d, %Y")
         )
     else:
         last_active = None
 
-    # ── ALL-TIME RECS (single DB fetch, reused for everything) ─
-    all_recs  = session.query(Recommendation).filter_by(kol_id=kol.id).all()
-    total_all = len(all_recs)
-
-    buy_count_all  = sum(1 for r in all_recs if r.direction in ("BUY",  "LONG"))
-    sell_count_all = sum(1 for r in all_recs if r.direction in ("SELL", "SHORT"))
-    hold_count_all = sum(1 for r in all_recs if r.direction == "HOLD")
-
-    buy_pct  = round(buy_count_all  / total_all * 100, 1) if total_all > 0 else 0
-    sell_pct = round(sell_count_all / total_all * 100, 1) if total_all > 0 else 0
-    hold_pct = round(hold_count_all / total_all * 100, 1) if total_all > 0 else 0
+    total_all = buy_count_all + sell_count_all + hold_count_all
+    buy_pct   = round(buy_count_all  / total_all * 100, 1) if total_all > 0 else 0
+    sell_pct  = round(sell_count_all / total_all * 100, 1) if total_all > 0 else 0
+    hold_pct  = round(hold_count_all / total_all * 100, 1) if total_all > 0 else 0
 
     avg_calls_per_week = 0.0
     if first_tweet_dt and total_all > 0:
         weeks = max(1, (now - first_tweet_dt).days / 7)
         avg_calls_per_week = max(0.1, round(total_all / weeks, 1))
-
-    # ── BATCH FETCH T0 SNAPSHOTS & PRICES ─────────────────────
-    all_rec_ids = [r.id for r in all_recs]
-    t0_snaps: dict = {}
-    if all_rec_ids:
-        snap_rows = session.query(PriceSnapshot).filter(
-            PriceSnapshot.recommendation_id.in_(all_rec_ids),
-            PriceSnapshot.snapshot_type == "T0",
-        ).all()
-        for s in snap_rows:
-            t0_snaps[s.recommendation_id] = s.price
-
-    tickers_with_t0 = {r.ticker for r in all_recs if t0_snaps.get(r.id) is not None}
-    _refresh_price_cache(tickers_with_t0)
-
-    # ── COMPUTE STATUS FOR ALL RECS (one pass) ────────────────
-    rec_computed = []
-    for r in all_recs:
-        price_at_call = t0_snaps.get(r.id)
-        current_price = (
-            ticker_price_cache.get(r.ticker, {}).get("price")
-            if price_at_call else None
-        )
-        pct, status = _price_change_and_status(r.direction, price_at_call, current_price)
-        posted_date = r.posted_at.date() if r.posted_at else None
-        days_since  = (today - posted_date).days if posted_date else None
-
-        rec_computed.append({
-            "id"                  : r.id,
-            "ticker"              : r.ticker,
-            "direction"           : r.direction,
-            "conviction"          : r.conviction,
-            "posted_at_dt"        : r.posted_at,          # kept for filtering
-            "posted_at_formatted" : r.posted_at.strftime("%b %d, %Y") if r.posted_at else None,
-            "days_since_call"     : days_since,
-            "price_at_call"       : price_at_call,
-            "current_price"       : current_price,
-            "price_change_pct"    : pct,
-            "call_status"         : status,
-            "signal_text"         : (r.signal_text[:100] if r.signal_text else None),
-        })
 
     rec_computed_sorted = sorted(
         rec_computed,
@@ -357,23 +403,32 @@ def get_kol_detail(
     )
     avg_return_pct = round(sum(returns) / len(returns), 1) if returns else None
 
-    # ── RANKING (T7D leaderboard position) ────────────────────
-    t7d_scored = session.query(KOL, KOLScore).join(
-        KOLScore, KOL.id == KOLScore.kol_id
-    ).filter(
-        KOL.is_active == True,
-        KOLScore.period == "T7D",
-        KOLScore.total_calls > 0,
-    ).order_by(KOLScore.win_rate.desc()).all()
-
-    total_kols_ranked = len(t7d_scored)
-    my_rank = None
-    my_t7d_wr = None
-    for i, (k_obj, s_obj) in enumerate(t7d_scored):
-        if k_obj.handle == handle:
-            my_rank   = i + 1
-            my_t7d_wr = s_obj.win_rate
-            break
+    # ── RANKING — reuse leaderboard cache when warm ────────────
+    cached_lb = _leaderboard_cache.get("T7D")
+    if cached_lb and (now - cached_lb["ts"]).total_seconds() < 300:
+        ranked = sorted(
+            [r for r in cached_lb["data"] if r["score"]["total_calls"] > 0],
+            key=lambda x: x["score"]["win_rate"], reverse=True,
+        )
+        total_kols_ranked = len(ranked)
+        my_rank   = next((i + 1 for i, r in enumerate(ranked) if r["handle"] == handle), None)
+        my_t7d_wr = next((r["score"]["win_rate"] for r in ranked if r["handle"] == handle), None)
+    else:
+        t7d_scored = session.query(KOL, KOLScore).join(
+            KOLScore, KOL.id == KOLScore.kol_id
+        ).filter(
+            KOL.is_active == True,
+            KOLScore.period == "T7D",
+            KOLScore.total_calls > 0,
+        ).order_by(KOLScore.win_rate.desc()).all()
+        total_kols_ranked = len(t7d_scored)
+        my_rank = None
+        my_t7d_wr = None
+        for i, (k_obj, s_obj) in enumerate(t7d_scored):
+            if k_obj.handle == handle:
+                my_rank   = i + 1
+                my_t7d_wr = s_obj.win_rate
+                break
 
     star_rating = None
     if my_t7d_wr is not None:
