@@ -1869,10 +1869,11 @@
     const list = document.getElementById("top-assets-list");
 
     // Update panel title to match selected period
-    const dayLabel = days === 1 ? "1 Day" : `${days} Days`;
+    const dayLabel = days >= 365 ? "All Time" : `${days} Days`;
     const titleEl  = document.querySelector(".top-assets .section-title");
     if (titleEl) {
-      titleEl.innerHTML = `🔥 Most Predicted Assets <span style="font-size:13px;color:#555;font-weight:400;">(Last ${dayLabel})</span>`;
+      const periodSuffix = days >= 365 ? "All Time" : `Last ${dayLabel}`;
+      titleEl.innerHTML = `🔥 Most Predicted Assets <span style="font-size:13px;color:#555;font-weight:400;">(${periodSuffix})</span>`;
     }
 
     try {
@@ -1921,12 +1922,13 @@
     try {
       const res  = await axios.get(`${API}/asset/${ticker}?days=${days}`);
       const data = res.data;
-      const dayLabel = days === 1 ? "1 Day" : `${days} Days`;
+      const dayLabel = days >= 365 ? "All Time" : `${days} Days`;
+      const periodLabel = days >= 365 ? "All Time" : `Last ${dayLabel}`;
 
       if (!data.predictions.length) {
         content.innerHTML = `
           <div class="modal-header">
-            <div class="modal-handle">$${ticker} — Last ${dayLabel}</div>
+            <div class="modal-handle">$${ticker} — ${periodLabel}</div>
             <button class="modal-close" onclick="document.getElementById('asset-modal').classList.remove('visible')">✕</button>
           </div>
           <div class="empty">No predictions found for this period.</div>`;
@@ -1976,7 +1978,7 @@
       content.innerHTML = `
         <div class="modal-header">
           <div>
-            <div class="modal-handle">$${ticker} Predictions — Last ${dayLabel}</div>
+            <div class="modal-handle">$${ticker} Predictions — ${periodLabel}</div>
             <div style="font-size:13px;color:#888;margin-top:4px;">${data.total} predictions · ${data.buy_count} BUY · ${data.sell_count} SELL</div>
           </div>
           <button class="modal-close" onclick="document.getElementById('asset-modal').classList.remove('visible')">✕</button>

@@ -73,9 +73,9 @@ def calculate_scores():
                     snapshot_type="T0"
                 ).first()
 
-                # Use best available outcome snapshot (T1D → T7D → T30D).
-                # Recent predictions won't have T7D/T30D data yet, but can
-                # still be evaluated using T1D if it exists.
+                # Use best available outcome snapshot (T7D → T30D).
+                # Recent predictions won't have T30D data yet but can
+                # still be evaluated using T7D if it exists.
                 tx = None
                 for snap_type in ["T7D", "T30D"]:
                     tx = session.query(PriceSnapshot).filter_by(
