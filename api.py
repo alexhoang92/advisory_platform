@@ -76,6 +76,10 @@ def serve_disclaimer():
 def serve_how_it_works():
     return FileResponse("frontend/how-it-works.html")
 
+@app.get("/feedback", include_in_schema=False)
+def serve_feedback():
+    return FileResponse("frontend/feedback.html")
+
 @app.get("/kol/{handle}", include_in_schema=False)
 def serve_kol_profile(handle: str):
     return FileResponse("frontend/index.html")
@@ -719,6 +723,28 @@ def search(q: str = Query(..., min_length=1)):
         "kols"           : kol_results,
         "recommendations": results,
     }
+
+
+# ── POST /feedback ─────────────────────────────────────────────
+FEEDBACK_EMAIL = "baongocphamhoang@gmail.com"
+
+@app.post("/feedback")
+def submit_feedback(message: str, email: str = ""):
+    if not message or not message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    sender_line = f"<p><strong>From:</strong> {email}</p>" if email else "<p><strong>From:</strong> Anonymous</p>"
+    html_body = f"""
+    <div style="font-family:sans-serif;max-width:600px;color:#333;">
+      <h2 style="color:#00cc66;">New Feedback — KOL Tracker</h2>
+      {sender_line}
+      <hr style="border:none;border-top:1px solid #eee;margin:16px 0;">
+      <p style="white-space:pre-wrap;line-height:1.7;">{message.strip()}</p>
+    </div>
+    """
+    subject = f"KOL Tracker Feedback{' from ' + email if email else ''}"
+    threading.Thread(target=_send_email, args=(FEEDBACK_EMAIL, subject, html_body), daemon=True).start()
+    return {"status": "ok"}
 
 
 # ── POST /subscribe ────────────────────────────────────────────

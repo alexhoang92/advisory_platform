@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feedback — KOL Tracker</title>
+  <meta name="description" content="Share your feedback, feature requests, or ideas with the KOL Tracker team.">
+  <meta property="og:title" content="Feedback — KOL Tracker">
+  <meta property="og:type" content="website">
+  <link rel="canonical" href="https://web-production-94c5.up.railway.app/feedback">
+
+  <!-- Vercel Web Analytics -->
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo { font-size: 20px; font-weight: 700; color: #00ff88; text-decoration: none; }
+    .logo span { color: #fff; }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a {
+      color: #888;
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: #fff; }
+    .nav-links a.active { color: #fff; }
+
+    /* ── Feedback nav tab highlight ── */
+    .nav-feedback {
+      color: #00ff88 !important;
+      border: 1px solid rgba(0, 255, 136, 0.3);
+      border-radius: 20px;
+      padding: 5px 14px;
+      background: rgba(0, 255, 136, 0.08);
+      transition: background 0.2s, border-color 0.2s !important;
+    }
+    .nav-feedback:hover {
+      background: rgba(0, 255, 136, 0.16) !important;
+      border-color: rgba(0, 255, 136, 0.55) !important;
+    }
+    .nav-feedback.active {
+      background: rgba(0, 255, 136, 0.14) !important;
+      border-color: rgba(0, 255, 136, 0.5) !important;
+    }
+
+    .btn-home {
+      background: #00ff88;
+      color: #000;
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .btn-home:hover { opacity: 0.85; }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 64px 32px 48px;
+      background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%);
+    }
+    .hero-icon { font-size: 48px; margin-bottom: 16px; display: block; }
+    .hero h1 { font-size: 40px; font-weight: 800; margin-bottom: 16px; line-height: 1.1; }
+    .hero h1 span { color: #00ff88; }
+    .hero p { font-size: 17px; color: #888; max-width: 520px; margin: 0 auto; line-height: 1.6; }
+
+    /* ── Content ── */
+    .content {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    /* ── Warm welcome card ── */
+    .welcome-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-left: 3px solid #00ff88;
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-bottom: 28px;
+    }
+    .welcome-card p {
+      color: #aaa;
+      font-size: 15px;
+      line-height: 1.7;
+      margin-bottom: 10px;
+    }
+    .welcome-card p:last-child { margin-bottom: 0; }
+    .welcome-card strong { color: #e0e0e0; }
+
+    /* ── Form ── */
+    .feedback-form {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 32px 28px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 10px;
+    }
+    .form-label .optional {
+      font-weight: 400;
+      color: #555;
+      text-transform: none;
+      letter-spacing: 0;
+      font-size: 12px;
+      margin-left: 6px;
+    }
+    .form-label .encouraged {
+      font-weight: 400;
+      color: #00ff8899;
+      text-transform: none;
+      letter-spacing: 0;
+      font-size: 12px;
+      margin-left: 6px;
+    }
+
+    .form-textarea {
+      width: 100%;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-family: inherit;
+      font-size: 15px;
+      line-height: 1.6;
+      padding: 16px;
+      resize: vertical;
+      min-height: 160px;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    .form-textarea:focus { border-color: #00ff88; }
+    .form-textarea::placeholder { color: #444; }
+
+    .form-input {
+      width: 100%;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-family: inherit;
+      font-size: 15px;
+      padding: 13px 16px;
+      transition: border-color 0.2s;
+      outline: none;
+      margin-top: 20px;
+    }
+    .form-input:focus { border-color: #00ff88; }
+    .form-input::placeholder { color: #444; }
+
+    .form-hint {
+      font-size: 12px;
+      color: #555;
+      margin-top: 7px;
+      line-height: 1.5;
+    }
+
+    .btn-send {
+      width: 100%;
+      background: #00ff88;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      padding: 16px;
+      cursor: pointer;
+      margin-top: 24px;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-send:hover { opacity: 0.88; }
+    .btn-send:active { transform: scale(0.98); }
+    .btn-send:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .send-error {
+      margin-top: 14px;
+      background: rgba(255, 68, 68, 0.08);
+      border: 1px solid rgba(255, 68, 68, 0.25);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: #ff8888;
+      display: none;
+    }
+
+    /* ── Thank you state ── */
+    .thankyou-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 48px 32px;
+      text-align: center;
+      display: none;
+    }
+    .thankyou-icon { font-size: 56px; display: block; margin-bottom: 20px; }
+    .thankyou-card h2 {
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+    .thankyou-card p {
+      color: #888;
+      font-size: 16px;
+      line-height: 1.6;
+      max-width: 400px;
+      margin: 0 auto 32px;
+    }
+    .btn-home-cta {
+      display: inline-block;
+      background: #00ff88;
+      color: #000;
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 15px;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .btn-home-cta:hover { opacity: 0.85; }
+
+    /* ── Footer ── */
+    footer {
+      background: #1a1a1a;
+      border-top: 1px solid #2a2a2a;
+      padding: 32px;
+      text-align: center;
+      margin-top: 64px;
+    }
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .footer-links a {
+      color: #555;
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: #888; }
+    .footer-copy { color: #333; font-size: 12px; }
+
+    @media (max-width: 768px) {
+      .hero { padding: 40px 20px 32px; }
+      .hero h1 { font-size: 28px; }
+      nav { padding: 14px 20px; }
+      .nav-links { gap: 16px; }
+      .nav-links .nav-disclaimer { display: none; }
+      .feedback-form { padding: 24px 20px; }
+      .welcome-card { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <a class="logo" href="/">KOL<span>Tracker</span></a>
+  <div class="nav-links">
+    <a href="/how-it-works">How It Works</a>
+    <a href="/disclaimer" class="nav-disclaimer">Disclaimer</a>
+    <a href="/feedback" class="nav-feedback active">Feedback</a>
+    <a href="/" class="btn-home">← Leaderboard</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <span class="hero-icon">💬</span>
+  <h1>We'd Love to <span>Hear From You</span></h1>
+  <p>Your ideas shape what we build next. Whether it's a bug, a feature request, or just a note — we read every message.</p>
+</div>
+
+<div class="content">
+
+  <!-- Welcome message -->
+  <div class="welcome-card">
+    <p>Hey! Thanks for taking a moment to share your thoughts. KOL Tracker is built for people who care about data-driven investing, and your feedback directly influences what we prioritize next.</p>
+    <p>Got a KOL you want us to track? A feature that would make your life easier? Something that's confusing or broken? <strong>Tell us everything.</strong> We genuinely appreciate it.</p>
+  </div>
+
+  <!-- Feedback form -->
+  <div class="feedback-form" id="feedback-form-wrap">
+    <label class="form-label" for="feedback-message">Your feedback</label>
+    <textarea
+      class="form-textarea"
+      id="feedback-message"
+      placeholder="What's on your mind? Feature requests, bug reports, KOL suggestions, general thoughts — all welcome..."
+    ></textarea>
+
+    <label class="form-label" for="feedback-email" style="margin-top:20px;">
+      Your email
+      <span class="encouraged">— encouraged so we can follow up</span>
+      <span class="optional">/ optional</span>
+    </label>
+    <input
+      class="form-input"
+      id="feedback-email"
+      type="email"
+      placeholder="you@example.com"
+      style="margin-top:0;"
+    />
+    <div class="form-hint">We'll only use this to reply to your message. No spam, ever.</div>
+
+    <button class="btn-send" id="btn-send" onclick="submitFeedback()">Send Feedback</button>
+    <div class="send-error" id="send-error">Something went wrong. Please try again, or email us directly at baongocphamhoang@gmail.com</div>
+  </div>
+
+  <!-- Thank you state (shown after successful send) -->
+  <div class="thankyou-card" id="thankyou-card">
+    <span class="thankyou-icon">🙏</span>
+    <h2>Thank You!</h2>
+    <p>Your message has been sent. We really appreciate you taking the time — we'll read every word and get back to you if you left an email.</p>
+    <a href="/" class="btn-home-cta">← Back to Leaderboard</a>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-links">
+    <a href="/">Home</a>
+    <a href="/how-it-works">How It Works</a>
+    <a href="/disclaimer">Disclaimer</a>
+    <a href="/feedback">Feedback</a>
+  </div>
+  <div class="footer-copy">© 2026 KOL Tracker. Not investment advice.</div>
+</footer>
+
+<script>
+  async function submitFeedback() {
+    const message = document.getElementById('feedback-message').value.trim();
+    const email   = document.getElementById('feedback-email').value.trim();
+    const btn     = document.getElementById('btn-send');
+    const errBox  = document.getElementById('send-error');
+
+    if (!message) {
+      document.getElementById('feedback-message').focus();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    errBox.style.display = 'none';
+
+    try {
+      const params = new URLSearchParams({ message });
+      if (email) params.set('email', email);
+
+      const res = await fetch('/feedback?' + params.toString(), { method: 'POST' });
+
+      if (!res.ok) throw new Error('Server error');
+
+      // Show thank you
+      document.getElementById('feedback-form-wrap').style.display = 'none';
+      document.getElementById('thankyou-card').style.display = 'block';
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = 'Send Feedback';
+      errBox.style.display = 'block';
+    }
+  }
+
+  // Allow Ctrl+Enter / Cmd+Enter to submit
+  document.getElementById('feedback-message').addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') submitFeedback();
+  });
+</script>
+
+</body>
+</html>

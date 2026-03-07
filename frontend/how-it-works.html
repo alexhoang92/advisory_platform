@@ -43,6 +43,19 @@
     }
     .nav-links a:hover { color: #fff; }
     .nav-links a.active { color: #fff; }
+    .nav-feedback {
+      color: #00ff88 !important;
+      border: 1px solid rgba(0, 255, 136, 0.3);
+      border-radius: 20px;
+      padding: 5px 14px;
+      background: rgba(0, 255, 136, 0.08);
+      transition: background 0.2s, border-color 0.2s !important;
+    }
+    .nav-feedback:hover {
+      background: rgba(0, 255, 136, 0.16) !important;
+      border-color: rgba(0, 255, 136, 0.55) !important;
+      color: #00ff88 !important;
+    }
     .btn-home {
       background: #00ff88;
       color: #000;
@@ -408,6 +421,7 @@
   <div class="nav-links">
     <a href="/how-it-works" class="active">How It Works</a>
     <a href="/disclaimer" class="nav-disclaimer">Disclaimer</a>
+    <a href="/feedback" class="nav-feedback">Feedback</a>
     <a href="/" class="btn-home">← Leaderboard</a>
   </div>
 </nav>

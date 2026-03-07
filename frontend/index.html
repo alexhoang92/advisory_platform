@@ -59,6 +59,19 @@
       transition: color 0.2s;
     }
     .nav-links a:hover { color: #fff; }
+    .nav-feedback {
+      color: #00ff88 !important;
+      border: 1px solid rgba(0, 255, 136, 0.3);
+      border-radius: 20px;
+      padding: 5px 14px;
+      background: rgba(0, 255, 136, 0.08);
+      transition: background 0.2s, border-color 0.2s !important;
+    }
+    .nav-feedback:hover {
+      background: rgba(0, 255, 136, 0.16) !important;
+      border-color: rgba(0, 255, 136, 0.55) !important;
+      color: #00ff88 !important;
+    }
 
     /* ── Disclaimer banner ── */
     #disclaimer-banner {
@@ -846,6 +859,7 @@
     <a href="/how-it-works">How It Works</a>
     <a href="/disclaimer">Disclaimer</a>
     <a onclick="showRequestModal()" style="cursor:pointer;">Request a KOL</a>
+    <a href="/feedback" class="nav-feedback">Feedback</a>
     <button class="btn-login" onclick="showSubscribeModal()">Get Updates</button>
   </div>
 </nav>
