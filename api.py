@@ -384,7 +384,7 @@ def get_kol_detail(
     )
 
     # ── PERFORMANCE FOR SELECTED PERIOD ───────────────────────
-    period_days_map = {"T1D": 1, "T7D": 7, "T30D": 30}
+    period_days_map = {"T7D": 7, "T30D": 30}
     if period in period_days_map:
         cutoff      = now - timedelta(days=period_days_map[period])
         period_recs = [r for r in rec_computed if r["posted_at_dt"] and r["posted_at_dt"] >= cutoff]

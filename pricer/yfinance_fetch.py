@@ -61,7 +61,6 @@ def fetch_price_snapshots():
     # Define snapshot windows
     snapshots = [
         ("T0",   timedelta(days=0)),
-        ("T1D",  timedelta(days=1)),
         ("T7D",  timedelta(days=7)),
         ("T30D", timedelta(days=30)),
     ]

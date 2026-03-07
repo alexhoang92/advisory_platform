@@ -136,25 +136,34 @@ Index('idx_rec_kol_id',       Recommendation.kol_id)
 Index('idx_raw_is_parsed',    RawTweet.is_parsed)
 Index('idx_kol_follow_email', KOLFollow.email)
 Index('idx_kol_follow_handle',KOLFollow.kol_handle)
+Index('idx_snap_rec_type',    PriceSnapshot.recommendation_id, PriceSnapshot.snapshot_type)
+Index('idx_score_kol_period', KOLScore.kol_id, KOLScore.period)
 
 
 # ── Database connection helpers ────────────────────────────────
+_engine = None
+_SessionFactory = None
+
 def get_engine():
-    db_url = os.getenv("DATABASE_URL", "sqlite:///kol_tracker.db")
-    if db_url.startswith("postgresql"):
-        return create_engine(db_url, pool_pre_ping=True, echo=False)
-    # For SQLite, ensure the parent directory exists (needed for Railway volumes)
-    if db_url.startswith("sqlite:///"):
-        db_path = db_url[len("sqlite:///"):]
-        parent  = os.path.dirname(db_path)
-        if parent:
-            os.makedirs(parent, exist_ok=True)
-    return create_engine(db_url, echo=False)
+    global _engine
+    if _engine is None:
+        db_url = os.getenv("DATABASE_URL", "sqlite:///kol_tracker.db")
+        if db_url.startswith("postgresql"):
+            _engine = create_engine(db_url, pool_pre_ping=True, echo=False)
+        else:
+            if db_url.startswith("sqlite:///"):
+                db_path = db_url[len("sqlite:///"):]
+                parent  = os.path.dirname(db_path)
+                if parent:
+                    os.makedirs(parent, exist_ok=True)
+            _engine = create_engine(db_url, echo=False)
+    return _engine
 
 def get_session():
-    engine = get_engine()
-    Session = sessionmaker(bind=engine)
-    return Session()
+    global _SessionFactory
+    if _SessionFactory is None:
+        _SessionFactory = sessionmaker(bind=get_engine())
+    return _SessionFactory()
 
 def init_db():
     engine = get_engine()

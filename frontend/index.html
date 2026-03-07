@@ -939,9 +939,9 @@
 
 <!-- Period Filter -->
 <div class="period-filter">
-  <button class="period-btn" onclick="setPeriod('T1D', this)">1 Day</button>
   <button class="period-btn active" onclick="setPeriod('T7D', this)">7 Days</button>
   <button class="period-btn" onclick="setPeriod('T30D', this)">30 Days</button>
+  <button class="period-btn" onclick="setPeriod('all', this)">All Time</button>
 </div>
 
 <!-- Main content: leaderboard + top assets -->
@@ -1054,7 +1054,6 @@
   <!-- Performance summary -->
   <div class="profile-section">
     <div class="profile-period-tabs">
-      <button class="profile-period-tab" onclick="setProfilePeriod('T1D',this)">1D</button>
       <button class="profile-period-tab active" onclick="setProfilePeriod('T7D',this)">7D</button>
       <button class="profile-period-tab" onclick="setProfilePeriod('T30D',this)">30D</button>
       <button class="profile-period-tab" onclick="setProfilePeriod('all',this)">All Time</button>
@@ -1338,7 +1337,7 @@
     btn.classList.add("active");
     loadLeaderboard(period);
     // Sync top-assets panel to the same time window
-    const daysMap = {"T1D": 1, "T7D": 7, "T30D": 30};
+    const daysMap = {"T7D": 7, "T30D": 30, "all": 3650};
     loadTopAssets(daysMap[period] || 7);
   }
 
@@ -1398,7 +1397,7 @@
   }
 
   function _periodLabel(p) {
-    return {T1D:"1D", T7D:"7D", T30D:"30D", all:"All Time"}[p] || "7D";
+    return {T7D:"7D", T30D:"30D", all:"All Time"}[p] || "7D";
   }
 
   // ── populateProfile ────────────────────────────────────────

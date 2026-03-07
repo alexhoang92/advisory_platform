@@ -1,15 +1,13 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "frontend/index.html",
-      "use": "@vercel/static"
-    }
+    { "src": "frontend/**/*", "use": "@vercel/static" }
   ],
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "frontend/index.html"
-    }
+    { "src": "/how-it-works", "dest": "frontend/how-it-works.html" },
+    { "src": "/disclaimer",   "dest": "frontend/disclaimer.html"   },
+    { "src": "/feedback",     "dest": "frontend/feedback.html"     },
+    { "src": "/kol/(.*)",     "dest": "frontend/index.html"        },
+    { "src": "/(.*)",         "dest": "frontend/index.html"        }
   ]
 }

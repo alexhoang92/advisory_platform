@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 from db.models import get_session, Recommendation, PriceSnapshot, KOLScore, KOL
 
 # Period = lookback window: only score predictions made in the last N days
-PERIOD_DAYS = {"T1D": 1, "T7D": 7, "T30D": 30}
+PERIOD_DAYS = {"T7D": 7, "T30D": 30}
 
 def is_correct_call(direction: str, price_t0: float, price_tx: float) -> bool:
     """
@@ -37,7 +37,7 @@ def calculate_scores():
     """
     session = get_session()
     kols    = session.query(KOL).all()
-    periods = ["T1D", "T7D", "T30D"]
+    periods = ["T7D", "T30D", "all"]
 
     print("🏆 Calculating KOL accuracy scores...\n")
 
@@ -54,9 +54,12 @@ def calculate_scores():
             continue
 
         for period in periods:
-            # Only consider predictions made within this period's lookback window
-            cutoff      = datetime.utcnow() - timedelta(days=PERIOD_DAYS[period])
-            window_recs = [r for r in recs if r.posted_at and r.posted_at >= cutoff]
+            # Filter recs to this period's lookback window; "all" uses all recs
+            if period == "all":
+                window_recs = recs
+            else:
+                cutoff      = datetime.utcnow() - timedelta(days=PERIOD_DAYS[period])
+                window_recs = [r for r in recs if r.posted_at and r.posted_at >= cutoff]
 
             total_calls   = len(window_recs)   # all predictions in window (incl. pending)
             correct_calls = 0
@@ -74,7 +77,7 @@ def calculate_scores():
                 # Recent predictions won't have T7D/T30D data yet, but can
                 # still be evaluated using T1D if it exists.
                 tx = None
-                for snap_type in ["T1D", "T7D", "T30D"]:
+                for snap_type in ["T7D", "T30D"]:
                     tx = session.query(PriceSnapshot).filter_by(
                         recommendation_id=rec.id,
                         snapshot_type=snap_type
@@ -140,7 +143,7 @@ def calculate_scores():
 def print_leaderboard(scores: list):
     """Print a formatted leaderboard table."""
 
-    for period in ["T1D", "T7D", "T30D"]:
+    for period in ["T7D", "T30D", "all"]:
         period_scores = [s for s in scores if s["period"] == period]
 
         if not period_scores:
