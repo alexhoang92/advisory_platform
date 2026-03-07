@@ -165,6 +165,87 @@ def _price_change_and_status(direction: str, price_at_call, current_price):
 # ── Leaderboard cache (5-minute TTL) ───────────────────────────
 _leaderboard_cache: dict = {}  # {period: {"data": list, "ts": datetime}}
 
+
+def _compute_alltime_scores(session, kol_ids: list) -> dict:
+    """
+    Compute all-time win rates for the given KOL IDs directly from
+    Recommendation + PriceSnapshot tables. Used when KOLScore rows with
+    period='all' don't yet exist (i.e. before the daily pipeline has run
+    with the updated scorer). Result is cached by the caller.
+    Returns {kol_id: SimpleNamespace(total_calls, correct_calls, win_rate, avg_return_pct)}.
+    """
+    from types import SimpleNamespace
+    from collections import defaultdict
+
+    all_recs = session.query(Recommendation).filter(
+        Recommendation.kol_id.in_(kol_ids)
+    ).all()
+    if not all_recs:
+        return {}
+
+    rec_ids = [r.id for r in all_recs]
+
+    # T0 snapshots (batch)
+    t0_map = {
+        s.recommendation_id: s.price
+        for s in session.query(PriceSnapshot).filter(
+            PriceSnapshot.recommendation_id.in_(rec_ids),
+            PriceSnapshot.snapshot_type == "T0",
+        ).all()
+    }
+
+    # Best outcome snapshot per rec: T7D preferred, T30D fallback.
+    # Load ascending by snapshot_type ("T30D" < "T7D") so T7D overwrites T30D.
+    tx_map: dict = {}
+    for s in session.query(PriceSnapshot).filter(
+        PriceSnapshot.recommendation_id.in_(rec_ids),
+        PriceSnapshot.snapshot_type.in_(["T7D", "T30D"]),
+    ).order_by(PriceSnapshot.snapshot_type.asc()).all():
+        tx_map[s.recommendation_id] = s.price  # T30D first, T7D overwrites → T7D priority
+
+    recs_by_kol: dict = defaultdict(list)
+    for r in all_recs:
+        recs_by_kol[r.kol_id].append(r)
+
+    result = {}
+    for kol_id in kol_ids:
+        kol_recs    = recs_by_kol.get(kol_id, [])
+        total_calls = len(kol_recs)
+        correct_calls = 0
+        total_return  = 0.0
+        evaluated     = 0
+
+        for rec in kol_recs:
+            t0 = t0_map.get(rec.id)
+            tx = tx_map.get(rec.id)
+            if t0 is None or tx is None or t0 == 0:
+                continue
+            raw = (tx - t0) / t0 * 100
+            if rec.direction in ("BUY", "LONG"):
+                correct = tx > t0
+                ret     = raw
+            elif rec.direction in ("SELL", "SHORT"):
+                correct = tx < t0
+                ret     = -raw
+            else:
+                continue
+            evaluated     += 1
+            total_return  += ret
+            if correct:
+                correct_calls += 1
+
+        if total_calls == 0:
+            continue
+        win_rate   = correct_calls / evaluated * 100 if evaluated > 0 else 0
+        avg_return = total_return  / evaluated       if evaluated > 0 else 0
+        result[kol_id] = SimpleNamespace(
+            total_calls    = total_calls,
+            correct_calls  = correct_calls,
+            win_rate       = round(win_rate,   1),
+            avg_return_pct = round(avg_return, 2),
+        )
+    return result
+
 # ── KOL profile cache (2-minute TTL) ───────────────────────────
 # Caches expensive rec_computed + activity stats per handle.
 # is_followed and pagination are always computed fresh.
@@ -191,6 +272,11 @@ def get_kols(period: str = "T7D"):
         KOLScore.period == period
     ).all()
     score_map  = {s.kol_id: s for s in scores}
+
+    # For "all" period: if the daily pipeline hasn't yet populated KOLScore
+    # rows with period="all", compute them dynamically from raw tables.
+    if period == "all" and not score_map:
+        score_map = _compute_alltime_scores(session, kol_ids)
 
     # 3 query: recommendation counts per KOL (aggregated)
     rec_rows   = session.query(
@@ -938,7 +1024,7 @@ def approve_kol(handle: str, x_admin_key: str = Header(None)):
 # ── GET /top-assets ────────────────────────────────────────────
 # Top tickers by recommendation count in the last N days
 @app.get("/top-assets")
-def get_top_assets(days: int = Query(7, ge=1, le=365)):
+def get_top_assets(days: int = Query(7, ge=1)):
     session  = get_session()
     cutoff   = datetime.utcnow() - timedelta(days=days)
 
@@ -975,7 +1061,7 @@ def get_top_assets(days: int = Query(7, ge=1, le=365)):
 # ── GET /asset/{ticker} ────────────────────────────────────────
 # All predictions for a ticker in the last N days, with performance data
 @app.get("/asset/{ticker}")
-def get_asset_detail(ticker: str, days: int = Query(7, ge=1, le=365)):
+def get_asset_detail(ticker: str, days: int = Query(7, ge=1)):
     session = get_session()
     ticker  = ticker.upper()
     cutoff  = datetime.utcnow() - timedelta(days=days)
