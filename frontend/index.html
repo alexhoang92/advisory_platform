@@ -848,6 +848,178 @@
       .profile-metric-value { font-size: 22px; }
       .profile-metric-card { padding: 14px; }
     }
+
+    /* ═══════════════════════════════════════════════════
+       MOBILE OPTIMIZATION
+       ═══════════════════════════════════════════════════ */
+
+    /* ── Hero: side-by-side on desktop ── */
+    .hero { text-align: left; }
+    .hero-layout {
+      display: flex;
+      align-items: center;
+      gap: 48px;
+      max-width: 960px;
+      margin: 0 auto 36px;
+    }
+    .hero-text { flex: 1; min-width: 0; }
+    .hero-text p { max-width: 420px; margin: 0; }
+    .hero-layout .stats-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px 28px;
+      flex-shrink: 0;
+      margin-bottom: 0;
+      justify-content: initial;
+    }
+
+    /* ── Floating "Get Updates" button ── */
+    #get-updates-fab {
+      position: fixed;
+      bottom: 94px;
+      right: 20px;
+      z-index: 540;
+      background: #00ff88;
+      color: #000;
+      border: none;
+      border-radius: 24px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(0, 255, 136, 0.4);
+      transition: opacity 0.2s, transform 0.2s;
+      white-space: nowrap;
+    }
+    #get-updates-fab:hover { opacity: 0.9; transform: translateY(-2px); }
+    #get-updates-fab.hidden { display: none; }
+
+    /* ── Profile: hide avatar, follow section top-right ── */
+    .profile-avatar { display: none; }
+    .profile-identity-card { gap: 0; }
+    .profile-info-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .profile-follow-section {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    /* ── See More button ── */
+    .see-more-btn {
+      display: block;
+      width: 100%;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #888;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      text-align: center;
+      margin-top: 8px;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .see-more-btn:hover { border-color: #00ff88; color: #00ff88; }
+
+    /* ── Mobile ≤ 768px ── */
+    @media (max-width: 768px) {
+      body { font-size: 16px; padding-bottom: 100px; }
+      nav { padding: 12px 16px; }
+
+      /* Hero stacks, text centered */
+      .hero { text-align: center; padding: 28px 16px 24px; }
+      .hero h1 { font-size: 26px; }
+      .hero-layout { flex-direction: column; gap: 20px; margin-bottom: 20px; }
+      .hero-text { text-align: center; }
+      .hero-text p { max-width: 100%; margin: 0 auto; }
+      .hero-layout .stats-bar {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px 20px;
+        width: 100%;
+      }
+      .stat-number { font-size: 24px; }
+      .hero .search-container { max-width: 100%; }
+
+      /* Sections */
+      .how-it-works { padding: 0 16px 28px; }
+      .search-results { padding: 0 12px; margin: 16px auto; }
+      .period-filter { padding: 0 12px 20px; gap: 6px; }
+      .period-btn { padding: 10px 14px; min-height: 44px; font-size: 13px; }
+      .main-content { padding: 0 12px 48px; }
+
+      /* KOL cards */
+      .kol-card { padding: 12px 14px; gap: 10px; }
+      .kol-metrics { gap: 12px; }
+      .metric-value { font-size: 16px; }
+      .metric-label { font-size: 11px; }
+      .kol-handle { font-size: 14px; }
+      .kol-rank { font-size: 18px; width: 26px; }
+      .calls-badge { font-size: 11px; padding: 3px 8px; }
+
+      /* Modals slide up from bottom */
+      .modal-overlay { padding: 0; align-items: flex-end; }
+      .modal {
+        border-radius: 20px 20px 0 0;
+        max-width: 100%;
+        max-height: 88vh;
+        overflow-y: auto;
+        padding: 24px 20px;
+      }
+      .modal-close { width: 44px; height: 44px; font-size: 18px; }
+      .subscribe-modal, .request-modal { align-items: flex-end; }
+      .subscribe-box, .request-box {
+        border-radius: 20px 20px 0 0;
+        max-width: 100%;
+        width: 100%;
+        padding: 28px 20px;
+      }
+      #follow-email-modal { align-items: flex-end; }
+      .follow-modal-box { border-radius: 20px 20px 0 0; max-width: 100%; width: 100%; padding: 28px 20px; }
+
+      /* Profile */
+      .profile-identity-card { padding: 18px 16px; }
+      .profile-info-top { flex-wrap: wrap; }
+      .profile-follow-section { align-items: flex-start; flex-direction: row; flex-wrap: wrap; gap: 8px; }
+      .profile-handle-text { font-size: 18px; }
+      .profile-section { padding: 14px 16px; }
+      .profile-metrics-grid { gap: 8px; }
+      .profile-metric-card { padding: 12px 10px; }
+      .profile-metric-value { font-size: 20px; }
+      .best-worst-grid { grid-template-columns: 1fr; gap: 12px; }
+      .profile-back-btn { padding: 10px 12px; min-width: 44px; min-height: 44px; font-size: 16px; }
+      .profile-share-btn { min-width: 44px; min-height: 44px; padding: 10px; }
+      .profile-period-tab { padding: 10px 14px; min-height: 44px; }
+      .profile-follow-btn { padding: 10px 16px; min-height: 44px; font-size: 13px; }
+
+      /* Call history: card layout on mobile */
+      #call-history-list .call-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        background: #1a1a1a;
+        border-radius: 10px;
+        border: 1px solid #2a2a2a !important;
+        padding: 14px;
+        margin-bottom: 8px;
+      }
+      .call-row-right { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; }
+      .filter-pills { gap: 6px; }
+      .filter-pill { padding: 8px 12px; min-height: 40px; font-size: 12px; }
+      .load-more-btn { padding: 14px; min-height: 44px; font-size: 15px; width: 100%; }
+
+      /* Toast */
+      #toast { white-space: normal; max-width: calc(100% - 32px); text-align: center; font-size: 13px; }
+
+      /* FAB */
+      #get-updates-fab { bottom: 80px; right: 14px; font-size: 13px; padding: 10px 16px; }
+    }
   </style>
 </head>
 <body>
@@ -856,13 +1028,13 @@
 <nav>
   <a class="logo" href="/" style="text-decoration:none;">KOL<span>Tracker</span></a>
   <div class="nav-links">
-    <a href="/how-it-works">How It Works</a>
-    <a href="/disclaimer">Disclaimer</a>
     <a onclick="showRequestModal()" style="cursor:pointer;">Request a KOL</a>
     <a href="/feedback" class="nav-feedback">Feedback</a>
-    <button class="btn-login" onclick="showSubscribeModal()">Get Updates</button>
   </div>
 </nav>
+
+<!-- Floating Get Updates button (fixed, above waitlist bar) -->
+<button id="get-updates-fab" onclick="showSubscribeModal()">📬 Get Updates</button>
 
 <!-- Disclaimer banner -->
 <div id="disclaimer-banner">
@@ -873,25 +1045,28 @@
 
 <!-- Hero -->
 <div class="hero">
-  <h1>Who Actually <span>Calls It Right?</span></h1>
-  <p>We track stock predictions from top financial influencers and score their accuracy.</p>
-
-  <div class="stats-bar">
-    <div class="stat">
-      <div class="stat-number" id="stat-kols">—</div>
-      <div class="stat-label">KOLs Tracked</div>
+  <div class="hero-layout">
+    <div class="hero-text">
+      <h1>Who <span>Calls It Right?</span></h1>
+      <p>See which financial expert actually makes the correct recommendation</p>
     </div>
-    <div class="stat">
-      <div class="stat-number" id="stat-recs">—</div>
-      <div class="stat-label">Calls Recorded</div>
-    </div>
-    <div class="stat">
-      <div class="stat-number" id="stat-tweets">—</div>
-      <div class="stat-label">Tweets Analyzed</div>
-    </div>
-    <div class="stat" id="stat-subscribers-wrap" style="display:none;">
-      <div class="stat-number" id="stat-subscribers">—</div>
-      <div class="stat-label">Subscribers</div>
+    <div class="stats-bar">
+      <div class="stat">
+        <div class="stat-number" id="stat-kols">—</div>
+        <div class="stat-label">KOLs Tracked</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number" id="stat-recs">—</div>
+        <div class="stat-label">Calls Recorded</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number" id="stat-tweets">—</div>
+        <div class="stat-label">Tweets Analyzed</div>
+      </div>
+      <div class="stat" id="stat-subscribers-wrap" style="display:none;">
+        <div class="stat-number" id="stat-subscribers">—</div>
+        <div class="stat-label">Subscribers</div>
+      </div>
     </div>
   </div>
 
@@ -1034,19 +1209,23 @@
 
   <!-- Identity card -->
   <div class="profile-identity-card">
-    <div class="profile-avatar" id="profile-avatar">?</div>
-    <div class="profile-info">
-      <div class="profile-handle-text" id="profile-handle-display">—</div>
-      <div class="profile-display-name" id="profile-display-name" style="display:none;"></div>
-      <div class="profile-type-row">
-        <span class="profile-content-type-badge" id="profile-content-type">—</span>
-        <span class="profile-stars" id="profile-stars"></span>
-      </div>
-      <span class="profile-ranking" id="profile-ranking"></span>
-      <div class="profile-actions">
-        <button class="profile-follow-btn not-following" id="profile-follow-btn"
-                onclick="followKOL(currentProfileHandle)">🔔 Follow KOL</button>
-        <span class="profile-follower-count" id="profile-follower-count">0 followers on KOL Tracker</span>
+    <div class="profile-avatar" id="profile-avatar" style="display:none;">?</div>
+    <div class="profile-info" style="flex:1;">
+      <div class="profile-info-top">
+        <div>
+          <div class="profile-handle-text" id="profile-handle-display">—</div>
+          <div class="profile-display-name" id="profile-display-name" style="display:none;"></div>
+          <div class="profile-type-row">
+            <span class="profile-content-type-badge" id="profile-content-type">—</span>
+            <span class="profile-stars" id="profile-stars"></span>
+          </div>
+          <span class="profile-ranking" id="profile-ranking"></span>
+        </div>
+        <div class="profile-follow-section">
+          <button class="profile-follow-btn not-following" id="profile-follow-btn"
+                  onclick="followKOL(currentProfileHandle)">🔔 Follow KOL</button>
+          <span class="profile-follower-count" id="profile-follower-count">0 followers on KOL Tracker</span>
+        </div>
       </div>
     </div>
   </div>
@@ -1228,6 +1407,8 @@
     const bar = document.getElementById("waitlist-sticky-bar");
     if (bar) bar.style.display = "none";
     try { localStorage.setItem("kol_waitlist_dismissed", "true"); } catch(e) {}
+    const fab = document.getElementById("get-updates-fab");
+    if (fab) fab.style.bottom = "20px";
   }
 
   async function submitWaitlist() {
@@ -1266,6 +1447,8 @@
     try {
       if (localStorage.getItem("kol_waitlist_dismissed") === "true") {
         bar.style.display = "none";
+        const fab = document.getElementById("get-updates-fab");
+        if (fab) fab.style.bottom = "20px";
         return;
       }
     } catch(e) {}
@@ -1282,6 +1465,43 @@
     } catch(e) {}
   }
 
+  // ── KOL card HTML helper ──────────────────────────────────
+  function _kolCardHtml(kol, rank) {
+    const wr      = kol.score.win_rate;
+    const ret     = kol.score.avg_return;
+    const calls   = kol.score.total_calls;
+    const retClass= ret >= 0 ? "positive" : "negative";
+    const retStr  = ret >= 0 ? `+${ret}%` : `${ret}%`;
+    const rankClass = rank <= 3 ? "kol-rank top" : "kol-rank";
+    return `
+      <div class="kol-card" onclick="openProfile('${kol.handle}')">
+        <div class="${rankClass}">${rank}</div>
+        <div class="kol-info">
+          <div class="kol-handle">@${kol.handle}</div>
+          <div class="kol-type">${kol.content_type || "—"}</div>
+        </div>
+        <div class="kol-metrics">
+          <div class="metric">
+            <div class="metric-value ${wr >= 50 ? 'positive' : 'negative'}">${wr}%</div>
+            <div class="metric-label">Win Rate</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value ${retClass}">${retStr}</div>
+            <div class="metric-label">Avg Return</div>
+          </div>
+          <div class="calls-badge">${calls} predictions</div>
+        </div>
+      </div>`;
+  }
+
+  function showAllLeaderboard() {
+    const btn = document.getElementById("lb-see-more");
+    if (btn) btn.remove();
+    const list = document.getElementById("leaderboard-list");
+    const all = window._allLeaderboardKols || [];
+    list.innerHTML = all.map((kol, i) => _kolCardHtml(kol, i + 1)).join("");
+  }
+
   // ── Load leaderboard ──────────────────────────────────────
   async function loadLeaderboard(period = "T7D") {
     const list = document.getElementById("leaderboard-list");
@@ -1296,34 +1516,12 @@
         return;
       }
 
-      list.innerHTML = kols.map((kol, i) => {
-        const wr      = kol.score.win_rate;
-        const ret     = kol.score.avg_return;
-        const calls   = kol.score.total_calls;
-        const retClass= ret >= 0 ? "positive" : "negative";
-        const retStr  = ret >= 0 ? `+${ret}%` : `${ret}%`;
-        const rankClass = i < 3 ? "kol-rank top" : "kol-rank";
-
-        return `
-          <div class="kol-card" onclick="openProfile('${kol.handle}')">
-            <div class="${rankClass}">${i + 1}</div>
-            <div class="kol-info">
-              <div class="kol-handle">@${kol.handle}</div>
-              <div class="kol-type">${kol.content_type || "—"}</div>
-            </div>
-            <div class="kol-metrics">
-              <div class="metric">
-                <div class="metric-value ${wr >= 50 ? 'positive' : 'negative'}">${wr}%</div>
-                <div class="metric-label">Win Rate</div>
-              </div>
-              <div class="metric">
-                <div class="metric-value ${retClass}">${retStr}</div>
-                <div class="metric-label">Avg Return</div>
-              </div>
-              <div class="calls-badge">${calls} predictions</div>
-            </div>
-          </div>`;
-      }).join("");
+      window._allLeaderboardKols = kols;
+      const display = kols.slice(0, 10);
+      list.innerHTML = display.map((kol, i) => _kolCardHtml(kol, i + 1)).join("") +
+        (kols.length > 10
+          ? `<button class="see-more-btn" id="lb-see-more" onclick="showAllLeaderboard()">See all ${kols.length} KOLs ↓</button>`
+          : "");
 
     } catch(e) {
       list.innerHTML = '<div class="empty">Failed to load data. Is the API running?</div>';
@@ -1507,7 +1705,7 @@
       el.innerHTML = '<div class="empty" style="padding:20px;text-align:center;color:#555;">Not enough scored calls yet</div>';
       return;
     }
-    el.innerHTML = calls.map(c => {
+    el.innerHTML = calls.slice(0, 3).map(c => {
       const pct = c.price_change_pct;
       const col = isBest ? "#00ff88" : "#ff4444";
       const pctStr = pct != null ? (pct >= 0 ? "+" : "") + pct + "%" : "—";
