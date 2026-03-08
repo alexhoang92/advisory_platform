@@ -1150,6 +1150,51 @@ def get_asset_detail(ticker: str, days: int = Query(7, ge=1)):
 
 
 # ── GET /stats ─────────────────────────────────────────────────
+@app.get("/new-kols")
+def get_new_kols(limit: int = 4):
+    """Return the most recently added KOLs."""
+    session = get_session()
+    kols = (session.query(KOL)
+            .filter_by(is_active=True)
+            .order_by(KOL.created_at.desc())
+            .limit(limit).all())
+    now = datetime.utcnow()
+    result = []
+    for kol in kols:
+        days = (now - kol.created_at).days if kol.created_at else 0
+        result.append({
+            "handle"        : kol.handle,
+            "display_name"  : kol.display_name or kol.handle,
+            "content_type"  : kol.content_type or "Stock Trader",
+            "days_since_added": days,
+        })
+    session.close()
+    return result
+
+
+@app.get("/latest-recommendations")
+def get_latest_recommendations(limit: int = 4):
+    """Return the most recently posted recommendations."""
+    session = get_session()
+    rows = (session.query(Recommendation, KOL)
+            .join(KOL, KOL.id == Recommendation.kol_id)
+            .filter(KOL.is_active == True)
+            .order_by(Recommendation.posted_at.desc())
+            .limit(limit).all())
+    result = []
+    for rec, kol in rows:
+        result.append({
+            "kol_handle"        : kol.handle,
+            "ticker"            : rec.ticker,
+            "direction"         : rec.direction,
+            "signal_text"       : (rec.signal_text or "")[:80],
+            "posted_at_formatted": rec.posted_at.strftime("%b %d, %Y") if rec.posted_at else "—",
+        })
+    session.close()
+    return result
+
+
+# ── GET /stats ──────────────────────────────────────────────────
 @app.get("/stats")
 def get_stats():
     session          = get_session()

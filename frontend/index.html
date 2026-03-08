@@ -876,9 +876,9 @@
     /* ── Floating "Get Updates" button ── */
     #get-updates-fab {
       position: fixed;
-      bottom: 94px;
+      bottom: 80px;
       right: 20px;
-      z-index: 540;
+      z-index: 560;
       background: #00ff88;
       color: #000;
       border: none;
@@ -910,6 +910,44 @@
       gap: 6px;
       flex-shrink: 0;
     }
+
+    /* ── New KOLs + Latest Recs carousel ── */
+    .carousel-section {
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 0 32px 32px;
+      display: flex;
+      gap: 24px;
+    }
+    .carousel-panel {
+      flex: 1;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 20px 24px;
+      min-height: 110px;
+    }
+    .carousel-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 14px;
+    }
+    .carousel-item { display: none; }
+    .carousel-item.active { display: block; animation: cFadeIn 0.35s ease; }
+    @keyframes cFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .carousel-dots { display: flex; gap: 6px; margin-top: 12px; }
+    .carousel-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #333; cursor: pointer; transition: background 0.2s;
+    }
+    .carousel-dot.active { background: #00ff88; }
+    .carousel-kol-name { font-weight: 700; color: #00ff88; cursor: pointer; font-size: 15px; }
+    .carousel-kol-name:hover { opacity: 0.8; }
+    .carousel-sub { color: #888; font-size: 12px; margin-top: 3px; }
+    .carousel-ticker { font-weight: 800; font-size: 20px; color: #fff; }
+    .carousel-handle { color: #00ff88; font-size: 13px; margin-top: 4px; cursor: pointer; }
+    .carousel-handle:hover { opacity: 0.8; }
 
     /* ── Section divider (qualified / unqualified split) ── */
     .section-divider {
@@ -959,6 +997,9 @@
       .hero .search-container { max-width: 100%; }
 
       /* Sections */
+      /* Carousel */
+      .carousel-section { flex-direction: column; padding: 0 12px 24px; gap: 12px; }
+
       .how-it-works { padding: 0 16px 28px; }
       .search-results { padding: 0 12px; margin: 16px auto; }
       .period-filter { padding: 0 12px 20px; gap: 6px; }
@@ -1028,8 +1069,8 @@
       /* Toast */
       #toast { white-space: normal; max-width: calc(100% - 32px); text-align: center; font-size: 13px; }
 
-      /* FAB */
-      #get-updates-fab { bottom: 80px; right: 14px; font-size: 13px; padding: 10px 16px; }
+      /* FAB — keep above the taller mobile waitlist bar */
+      #get-updates-fab { bottom: 140px; right: 14px; font-size: 13px; padding: 10px 16px; }
     }
   </style>
 </head>
@@ -1096,30 +1137,17 @@
 <!-- Search Results -->
 <div class="search-results" id="search-results"></div>
 
-<!-- How It Works -->
-<div class="how-it-works">
-  <div class="how-title">How We Score KOLs</div>
-  <div class="how-grid">
-    <div class="how-card">
-      <div class="how-icon">📡</div>
-      <div class="how-card-title">We Track</div>
-      <div class="how-card-text">Daily scraping of 80+ financial influencers on X/Twitter</div>
-    </div>
-    <div class="how-card">
-      <div class="how-icon">🧠</div>
-      <div class="how-card-title">We Parse</div>
-      <div class="how-card-text">AI reads every tweet and extracts stock recommendations automatically</div>
-    </div>
-    <div class="how-card">
-      <div class="how-icon">📊</div>
-      <div class="how-card-title">We Score</div>
-      <div class="how-card-text">Each call is marked correct or wrong based on real price movement at 1, 7, and 30 days</div>
-    </div>
-    <div class="how-card">
-      <div class="how-icon">🏆</div>
-      <div class="how-card-title">We Rank</div>
-      <div class="how-card-text">KOLs are ranked by win rate so you know who is actually worth following</div>
-    </div>
+<!-- New KOLs + Latest Recs carousel -->
+<div class="carousel-section">
+  <div class="carousel-panel">
+    <div class="carousel-title">🆕 Recently Added KOLs</div>
+    <div class="carousel-track" id="new-kols-track"><div class="loading">Loading...</div></div>
+    <div class="carousel-dots" id="new-kols-dots"></div>
+  </div>
+  <div class="carousel-panel">
+    <div class="carousel-title">📣 Latest Recommendations</div>
+    <div class="carousel-track" id="latest-recs-track"><div class="loading">Loading...</div></div>
+    <div class="carousel-dots" id="latest-recs-dots"></div>
   </div>
 </div>
 
@@ -1191,6 +1219,33 @@
               placeholder="Why should we track them?"></textarea>
     <button class="btn-request" onclick="submitRequest()">Submit Request</button>
     <button class="btn-close-modal" onclick="hideRequestModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- How It Works (moved to bottom) -->
+<div class="how-it-works">
+  <div class="how-title">How We Score KOLs</div>
+  <div class="how-grid">
+    <div class="how-card">
+      <div class="how-icon">📡</div>
+      <div class="how-card-title">We Track</div>
+      <div class="how-card-text">Daily scraping of 80+ financial influencers on X/Twitter</div>
+    </div>
+    <div class="how-card">
+      <div class="how-icon">🧠</div>
+      <div class="how-card-title">We Parse</div>
+      <div class="how-card-text">AI reads every tweet and extracts stock recommendations automatically</div>
+    </div>
+    <div class="how-card">
+      <div class="how-icon">📊</div>
+      <div class="how-card-title">We Score</div>
+      <div class="how-card-text">Each call is marked correct or wrong based on real price movement at 1, 7, and 30 days</div>
+    </div>
+    <div class="how-card">
+      <div class="how-icon">🏆</div>
+      <div class="how-card-title">We Rank</div>
+      <div class="how-card-text">KOLs are ranked by win rate so you know who is actually worth following</div>
+    </div>
   </div>
 </div>
 
@@ -1419,7 +1474,7 @@
     if (bar) bar.style.display = "none";
     try { localStorage.setItem("kol_waitlist_dismissed", "true"); } catch(e) {}
     const fab = document.getElementById("get-updates-fab");
-    if (fab) fab.style.bottom = "20px";
+    if (fab) fab.style.bottom = "24px";
   }
 
   async function submitWaitlist() {
@@ -1459,7 +1514,7 @@
       if (localStorage.getItem("kol_waitlist_dismissed") === "true") {
         bar.style.display = "none";
         const fab = document.getElementById("get-updates-fab");
-        if (fab) fab.style.bottom = "20px";
+        if (fab) fab.style.bottom = "24px";
         return;
       }
     } catch(e) {}
@@ -2230,16 +2285,88 @@
     }
   }
 
+  // ── Carousel helpers ──────────────────────────────────────
+  function _goToSlide(trackId, dotsId, index) {
+    const track  = document.getElementById(trackId);
+    const dotsEl = document.getElementById(dotsId);
+    if (!track || !dotsEl) return;
+    track.querySelectorAll(".carousel-item").forEach((el, i) =>
+      el.classList.toggle("active", i === index));
+    dotsEl.querySelectorAll(".carousel-dot").forEach((el, i) =>
+      el.classList.toggle("active", i === index));
+  }
+
+  function _setupCarousel(trackId, dotsId, count) {
+    const dotsEl = document.getElementById(dotsId);
+    if (!dotsEl) return;
+    dotsEl.innerHTML = Array.from({length: count}, (_, i) =>
+      `<div class="carousel-dot${i === 0 ? " active" : ""}"
+            onclick="_goToSlide('${trackId}','${dotsId}',${i})"></div>`
+    ).join("");
+    // Clear any existing interval
+    if (window[`_ci_${trackId}`]) clearInterval(window[`_ci_${trackId}`]);
+    let cur = 0;
+    window[`_ci_${trackId}`] = setInterval(() => {
+      cur = (cur + 1) % count;
+      _goToSlide(trackId, dotsId, cur);
+    }, 5000);
+  }
+
+  // ── Load New KOLs carousel ────────────────────────────────
+  async function loadNewKOLs() {
+    const track = document.getElementById("new-kols-track");
+    try {
+      const res  = await axios.get(`${API}/new-kols?limit=4`);
+      const kols = res.data;
+      if (!kols.length) { track.innerHTML = '<div class="empty">No KOLs yet.</div>'; return; }
+      track.innerHTML = kols.map((kol, i) => `
+        <div class="carousel-item${i === 0 ? " active" : ""}">
+          <div class="carousel-kol-name" onclick="openProfile('${kol.handle}')">@${kol.handle}</div>
+          <div class="carousel-sub">${kol.content_type}</div>
+          <div class="carousel-sub" style="color:#555;">Added ${kol.days_since_added === 0 ? "today" : kol.days_since_added + " days ago"}</div>
+        </div>`).join("");
+      _setupCarousel("new-kols-track", "new-kols-dots", kols.length);
+    } catch(e) { track.innerHTML = '<div class="empty">—</div>'; }
+  }
+
+  // ── Load Latest Recs carousel ─────────────────────────────
+  async function loadLatestRecs() {
+    const track = document.getElementById("latest-recs-track");
+    try {
+      const res  = await axios.get(`${API}/latest-recommendations?limit=4`);
+      const recs = res.data;
+      if (!recs.length) { track.innerHTML = '<div class="empty">No recommendations yet.</div>'; return; }
+      track.innerHTML = recs.map((r, i) => {
+        const dirClass = ["BUY","LONG"].includes(r.direction) ? "BUY"
+                       : ["SELL","SHORT"].includes(r.direction) ? "SELL" : r.direction;
+        return `
+        <div class="carousel-item${i === 0 ? " active" : ""}">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="carousel-ticker">$${r.ticker}</span>
+            <span class="direction-badge ${dirClass}">${r.direction}</span>
+          </div>
+          <div class="carousel-handle" onclick="openProfile('${r.kol_handle}')">@${r.kol_handle}</div>
+          <div class="carousel-sub" style="color:#555;margin-top:2px;">${r.posted_at_formatted}</div>
+        </div>`;
+      }).join("");
+      _setupCarousel("latest-recs-track", "latest-recs-dots", recs.length);
+    } catch(e) { track.innerHTML = '<div class="empty">—</div>'; }
+  }
+
   // ── Init ──────────────────────────────────────────────────
   loadStats();
   loadLeaderboard(currentPeriod);
   loadTopAssets(30);
+  loadNewKOLs();
+  loadLatestRecs();
 
   // Auto-refresh every 5 minutes
   setInterval(() => {
     loadStats();
     loadLeaderboard(currentPeriod);
     loadTopAssets(currentAssetDays);
+    loadNewKOLs();
+    loadLatestRecs();
   }, 5 * 60 * 1000);
 
   // ── URL routing ───────────────────────────────────────────
