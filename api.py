@@ -398,15 +398,21 @@ def get_kol_detail(
         sell_count_all = sum(1 for r in all_recs if r.direction in ("SELL", "SHORT"))
         hold_count_all = sum(1 for r in all_recs if r.direction == "HOLD")
 
-        # ── T0 SNAPSHOTS (batch) ───────────────────────────────
+        # ── T0 + OUTCOME SNAPSHOTS (batch) ─────────────────────
         all_rec_ids = [r.id for r in all_recs]
         t0_snaps: dict = {}
+        tx_snaps: dict = {}  # T7D preferred, T30D fallback — matches scorer methodology
         if all_rec_ids:
             for s in session.query(PriceSnapshot).filter(
                 PriceSnapshot.recommendation_id.in_(all_rec_ids),
-                PriceSnapshot.snapshot_type == "T0",
             ).all():
-                t0_snaps[s.recommendation_id] = s.price
+                if s.snapshot_type == "T0":
+                    t0_snaps[s.recommendation_id] = s.price
+                elif s.snapshot_type in ("T7D", "T30D"):
+                    # T7D overwrites T30D (T7D is preferred, load ascending so T7D wins)
+                    existing = tx_snaps.get(s.recommendation_id)
+                    if existing is None or s.snapshot_type == "T7D":
+                        tx_snaps[s.recommendation_id] = s.price
 
         # ── CURRENT PRICES — single batch yfinance call ────────
         tickers_with_t0 = {r.ticker for r in all_recs if t0_snaps.get(r.id) is not None}
@@ -420,7 +426,18 @@ def get_kol_detail(
                 ticker_price_cache.get(r.ticker, {}).get("price")
                 if price_at_call else None
             )
+            # For display: use current price (shows live movement)
             pct, status = _price_change_and_status(r.direction, price_at_call, current_price)
+
+            # For avg_return: use scorer methodology
+            # — historical T7D/T30D snapshot, direction-adjusted (SELL/SHORT negated)
+            tx_price = tx_snaps.get(r.id)
+            if price_at_call and tx_price and price_at_call > 0:
+                raw = (tx_price - price_at_call) / price_at_call * 100
+                scored_return = -raw if r.direction in ("SELL", "SHORT") else raw
+            else:
+                scored_return = None
+
             posted_date = r.posted_at.date() if r.posted_at else None
             days_since  = (today - posted_date).days if posted_date else None
 
@@ -436,6 +453,7 @@ def get_kol_detail(
                 "current_price"       : current_price,
                 "price_change_pct"    : pct,
                 "call_status"         : status,
+                "scored_return"       : round(scored_return, 2) if scored_return is not None else None,
                 "signal_text"         : (r.signal_text[:100] if r.signal_text else None),
             })
 
@@ -487,21 +505,21 @@ def get_kol_detail(
     else:
         period_recs = rec_computed
 
-    correct_count = sum(1 for r in period_recs if r["call_status"] == "correct")
-    wrong_count   = sum(1 for r in period_recs if r["call_status"] == "wrong")
-    pending_count = sum(1 for r in period_recs if r["call_status"] == "pending")
-    returns       = [
-        r["price_change_pct"]
-        for r in period_recs
-        if r["price_change_pct"] is not None and r["call_status"] in ("correct", "wrong")
-    ]
+    # ── Performance metrics using scorer methodology ───────────
+    # scored_return is direction-adjusted and uses T7D/T30D historical snapshots.
+    # Recs with no outcome snapshot yet are "pending" (not counted in win rate or avg return).
+    evaluated_recs = [r for r in period_recs if r["scored_return"] is not None]
+    correct_count  = sum(1 for r in evaluated_recs if r["scored_return"] > 0)
+    wrong_count    = sum(1 for r in evaluated_recs if r["scored_return"] <= 0)
+    pending_count  = len(period_recs) - len(evaluated_recs)
+    scored_returns = [r["scored_return"] for r in evaluated_recs]
 
     total_calls_period = len(period_recs)
     win_rate       = (
-        round(correct_count / (correct_count + wrong_count) * 100, 1)
-        if (correct_count + wrong_count) > 0 else None
+        round(correct_count / len(evaluated_recs) * 100, 1)
+        if evaluated_recs else None
     )
-    avg_return_pct = round(sum(returns) / len(returns), 1) if returns else None
+    avg_return_pct = round(sum(scored_returns) / len(scored_returns), 1) if scored_returns else None
 
     # ── RANKING — reuse leaderboard cache when warm ────────────
     cached_lb = _leaderboard_cache.get("T30D")
