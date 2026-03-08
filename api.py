@@ -254,7 +254,7 @@ _kol_profile_cache: dict = {}  # {handle: {"data": dict, "ts": datetime}}
 # ── GET /kols ──────────────────────────────────────────────────
 # Returns leaderboard — all KOLs with their scores
 @app.get("/kols")
-def get_kols(period: str = "T7D"):
+def get_kols(period: str = "T30D"):
     now = datetime.utcnow()
     cached = _leaderboard_cache.get(period)
     if cached and (now - cached["ts"]).total_seconds() < 300:
@@ -320,7 +320,17 @@ def get_kols(period: str = "T7D"):
             }
         })
 
-    result.sort(key=lambda x: x["score"]["win_rate"], reverse=True)
+    # Split into qualified (≥10 calls) and unqualified (1-9 calls); exclude 0-call KOLs
+    qualified   = [x for x in result if x["score"]["total_calls"] >= 10]
+    unqualified = [x for x in result if 0 < x["score"]["total_calls"] < 10]
+    qualified.sort(key=lambda x: x["score"]["win_rate"], reverse=True)
+    unqualified.sort(key=lambda x: x["score"]["avg_return"], reverse=True)
+    for kol in qualified:
+        kol["qualified"] = True
+    for kol in unqualified:
+        kol["qualified"] = False
+    result = qualified + unqualified
+
     session.close()
 
     _leaderboard_cache[period] = {"data": result, "ts": now}
@@ -332,7 +342,7 @@ def get_kols(period: str = "T7D"):
 @app.get("/kols/{handle}")
 def get_kol_detail(
     handle   : str,
-    period   : str = Query("T7D"),
+    period   : str = Query("T30D"),
     email    : str = Query(""),
     filter   : str = Query("all"),
     page     : int = Query(1, ge=1),
@@ -494,12 +504,9 @@ def get_kol_detail(
     avg_return_pct = round(sum(returns) / len(returns), 1) if returns else None
 
     # ── RANKING — reuse leaderboard cache when warm ────────────
-    cached_lb = _leaderboard_cache.get("T7D")
+    cached_lb = _leaderboard_cache.get("T30D")
     if cached_lb and (now - cached_lb["ts"]).total_seconds() < 300:
-        ranked = sorted(
-            [r for r in cached_lb["data"] if r["score"]["total_calls"] > 0],
-            key=lambda x: x["score"]["win_rate"], reverse=True,
-        )
+        ranked = [r for r in cached_lb["data"] if r.get("qualified") is True]
         total_kols_ranked = len(ranked)
         my_rank   = next((i + 1 for i, r in enumerate(ranked) if r["handle"] == handle), None)
         my_t7d_wr = next((r["score"]["win_rate"] for r in ranked if r["handle"] == handle), None)
@@ -508,8 +515,8 @@ def get_kol_detail(
             KOLScore, KOL.id == KOLScore.kol_id
         ).filter(
             KOL.is_active == True,
-            KOLScore.period == "T7D",
-            KOLScore.total_calls > 0,
+            KOLScore.period == "T30D",
+            KOLScore.total_calls >= 10,
         ).order_by(KOLScore.win_rate.desc()).all()
         total_kols_ranked = len(t7d_scored)
         my_rank = None

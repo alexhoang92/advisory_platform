@@ -911,6 +911,17 @@
       flex-shrink: 0;
     }
 
+    /* ── Section divider (qualified / unqualified split) ── */
+    .section-divider {
+      font-size: 11px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      padding: 16px 4px 8px;
+      border-top: 1px solid #2a2a2a;
+      margin-top: 8px;
+    }
+
     /* ── See More button ── */
     .see-more-btn {
       display: block;
@@ -1114,8 +1125,8 @@
 
 <!-- Period Filter -->
 <div class="period-filter">
-  <button class="period-btn active" onclick="setPeriod('T7D', this)">7 Days</button>
-  <button class="period-btn" onclick="setPeriod('T30D', this)">30 Days</button>
+  <button class="period-btn" onclick="setPeriod('T7D', this)">7 Days</button>
+  <button class="period-btn active" onclick="setPeriod('T30D', this)">30 Days</button>
   <button class="period-btn" onclick="setPeriod('all', this)">All Time</button>
 </div>
 
@@ -1130,7 +1141,7 @@
 
   <!-- Top Assets -->
   <div class="top-assets">
-    <div class="section-title">🔥 Most Predicted Assets <span style="font-size:13px;color:#555;font-weight:400;">(Last 7 Days)</span></div>
+    <div class="section-title">🔥 Most Predicted Assets <span style="font-size:13px;color:#555;font-weight:400;">(Last 30 Days)</span></div>
     <div id="top-assets-list"><div class="loading">Loading...</div></div>
   </div>
 
@@ -1233,8 +1244,8 @@
   <!-- Performance summary -->
   <div class="profile-section">
     <div class="profile-period-tabs">
-      <button class="profile-period-tab active" onclick="setProfilePeriod('T7D',this)">7D</button>
-      <button class="profile-period-tab" onclick="setProfilePeriod('T30D',this)">30D</button>
+      <button class="profile-period-tab" onclick="setProfilePeriod('T7D',this)">7D</button>
+      <button class="profile-period-tab active" onclick="setProfilePeriod('T30D',this)">30D</button>
       <button class="profile-period-tab" onclick="setProfilePeriod('all',this)">All Time</button>
     </div>
     <div class="profile-metrics-grid">
@@ -1357,13 +1368,13 @@
 
 <script>
   const API = "https://web-production-94c5.up.railway.app";
-  let currentPeriod = "T7D";
-  let currentAssetDays = 7;
+  let currentPeriod = "T30D";
+  let currentAssetDays = 30;
   let searchTimeout = null;
 
   // ── Profile state ──────────────────────────────────────────
   let currentProfileHandle    = null;
-  let currentProfilePeriod    = "T7D";
+  let currentProfilePeriod    = "T30D";
   let currentProfileFilter    = "all";
   let currentProfilePage      = 1;
   let currentProfileTotalPages = 1;
@@ -1472,10 +1483,12 @@
     const calls   = kol.score.total_calls;
     const retClass= ret >= 0 ? "positive" : "negative";
     const retStr  = ret >= 0 ? `+${ret}%` : `${ret}%`;
-    const rankClass = rank <= 3 ? "kol-rank top" : "kol-rank";
+    const hasRank = rank != null;
+    const rankClass = hasRank && rank <= 3 ? "kol-rank top" : "kol-rank";
+    const rankDisplay = hasRank ? rank : "—";
     return `
       <div class="kol-card" onclick="openProfile('${kol.handle}')">
-        <div class="${rankClass}">${rank}</div>
+        <div class="${rankClass}">${rankDisplay}</div>
         <div class="kol-info">
           <div class="kol-handle">@${kol.handle}</div>
           <div class="kol-type">${kol.content_type || "—"}</div>
@@ -1489,21 +1502,44 @@
             <div class="metric-value ${retClass}">${retStr}</div>
             <div class="metric-label">Avg Return</div>
           </div>
-          <div class="calls-badge">${calls} predictions</div>
+          <div class="calls-badge">${calls} calls</div>
         </div>
       </div>`;
   }
 
+  // ── Render leaderboard sections (qualified + unqualified) ──
+  function _renderLeaderboard(qualified, unqualified, showAllQual, showAllUnqual) {
+    const qualDisplay   = showAllQual   ? qualified   : qualified.slice(0, 10);
+    const unqualDisplay = showAllUnqual ? unqualified : unqualified.slice(0, 10);
+
+    let html = qualDisplay.map((kol, i) => _kolCardHtml(kol, i + 1)).join("");
+
+    if (!showAllQual && qualified.length > 10) {
+      html += `<button class="see-more-btn" id="lb-see-more" onclick="showAllLeaderboard()">See all ${qualified.length} ranked KOLs ↓</button>`;
+    }
+
+    if (unqualified.length > 0) {
+      html += `<div class="section-divider">📊 Fewer than 10 calls · ranked by avg return</div>`;
+      html += unqualDisplay.map(kol => _kolCardHtml(kol, null)).join("");
+      if (!showAllUnqual && unqualified.length > 10) {
+        html += `<button class="see-more-btn" id="lb-see-more-unqual" onclick="showAllUnqualLeaderboard()">See ${unqualified.length - 10} more ↓</button>`;
+      }
+    }
+    return html;
+  }
+
   function showAllLeaderboard() {
-    const btn = document.getElementById("lb-see-more");
-    if (btn) btn.remove();
     const list = document.getElementById("leaderboard-list");
-    const all = window._allLeaderboardKols || [];
-    list.innerHTML = all.map((kol, i) => _kolCardHtml(kol, i + 1)).join("");
+    list.innerHTML = _renderLeaderboard(window._qualifiedKols || [], window._unqualifiedKols || [], true, false);
+  }
+
+  function showAllUnqualLeaderboard() {
+    const list = document.getElementById("leaderboard-list");
+    list.innerHTML = _renderLeaderboard(window._qualifiedKols || [], window._unqualifiedKols || [], true, true);
   }
 
   // ── Load leaderboard ──────────────────────────────────────
-  async function loadLeaderboard(period = "T7D") {
+  async function loadLeaderboard(period = "T30D") {
     const list = document.getElementById("leaderboard-list");
     list.innerHTML = '<div class="loading">Loading...</div>';
 
@@ -1516,12 +1552,17 @@
         return;
       }
 
-      window._allLeaderboardKols = kols;
-      const display = kols.slice(0, 10);
-      list.innerHTML = display.map((kol, i) => _kolCardHtml(kol, i + 1)).join("") +
-        (kols.length > 10
-          ? `<button class="see-more-btn" id="lb-see-more" onclick="showAllLeaderboard()">See all ${kols.length} KOLs ↓</button>`
-          : "");
+      const qualified   = kols.filter(k => k.qualified === true);
+      const unqualified = kols.filter(k => k.qualified === false);
+      window._qualifiedKols   = qualified;
+      window._unqualifiedKols = unqualified;
+
+      if (!qualified.length && !unqualified.length) {
+        list.innerHTML = '<div class="empty">No scored KOLs for this period.</div>';
+        return;
+      }
+
+      list.innerHTML = _renderLeaderboard(qualified, unqualified, false, false);
 
     } catch(e) {
       list.innerHTML = '<div class="empty">Failed to load data. Is the API running?</div>';
@@ -1595,7 +1636,7 @@
   }
 
   function _periodLabel(p) {
-    return {T7D:"7D", T30D:"30D", all:"All Time"}[p] || "7D";
+    return {T7D:"7D", T30D:"30D", all:"All Time"}[p] || "30D";
   }
 
   // ── populateProfile ────────────────────────────────────────
@@ -2192,7 +2233,7 @@
   // ── Init ──────────────────────────────────────────────────
   loadStats();
   loadLeaderboard(currentPeriod);
-  loadTopAssets(7);
+  loadTopAssets(30);
 
   // Auto-refresh every 5 minutes
   setInterval(() => {
