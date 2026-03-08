@@ -1173,14 +1173,24 @@ def get_new_kols(limit: int = 4):
             .order_by(KOL.created_at.desc())
             .limit(limit).all())
     now = datetime.utcnow()
+    kol_ids = [k.id for k in kols]
+    # Batch-load scores (prefer "all" period for new KOLs)
+    scores = session.query(KOLScore).filter(
+        KOLScore.kol_id.in_(kol_ids), KOLScore.period == "all"
+    ).all() if kol_ids else []
+    score_map = {s.kol_id: s for s in scores}
     result = []
     for kol in kols:
-        days = (now - kol.created_at).days if kol.created_at else 0
+        days  = (now - kol.created_at).days if kol.created_at else 0
+        score = score_map.get(kol.id)
         result.append({
-            "handle"        : kol.handle,
-            "display_name"  : kol.display_name or kol.handle,
-            "content_type"  : kol.content_type or "Stock Trader",
+            "handle"          : kol.handle,
+            "display_name"    : kol.display_name or kol.handle,
+            "content_type"    : kol.content_type or "Stock Trader",
             "days_since_added": days,
+            "avg_return"      : round(score.avg_return_pct, 1) if score else None,
+            "win_rate"        : round(score.win_rate, 1)       if score else None,
+            "total_calls"     : score.total_calls              if score else 0,
         })
     session.close()
     return result
