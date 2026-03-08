@@ -747,12 +747,22 @@ def get_my_follows(email: str = Query(None)):
         .all()
     )
 
+    # Batch-load KOLs and scores (avoids N+1)
+    follow_handles = [f.kol_handle for f in follows]
+    kol_objs = session.query(KOL).filter(KOL.handle.in_(follow_handles)).all() if follow_handles else []
+    kol_by_handle = {k.handle: k for k in kol_objs}
+    kol_ids_list  = [k.id for k in kol_objs]
+    score_objs = session.query(KOLScore).filter(
+        KOLScore.kol_id.in_(kol_ids_list), KOLScore.period == "T30D"
+    ).all() if kol_ids_list else []
+    score_by_kol_id = {s.kol_id: s for s in score_objs}
+
     result = []
     for f in follows:
-        kol   = session.query(KOL).filter_by(handle=f.kol_handle).first()
+        kol = kol_by_handle.get(f.kol_handle)
         if not kol:
             continue
-        score = session.query(KOLScore).filter_by(kol_id=kol.id, period="T7D").first()
+        score = score_by_kol_id.get(kol.id)
         result.append({
             "handle"      : f.kol_handle,
             "display_name": kol.display_name,
@@ -781,12 +791,16 @@ def search(q: str = Query(..., min_length=1)):
         .limit(20)\
         .all()
 
+    # Batch-load KOLs for ticker results (avoids N+1)
+    ticker_kol_ids = list({r.kol_id for r in ticker_recs})
+    ticker_kol_map = {k.id: k for k in session.query(KOL).filter(KOL.id.in_(ticker_kol_ids)).all()} if ticker_kol_ids else {}
+
     results = []
     for r in ticker_recs:
-        kol = session.query(KOL).filter_by(id=r.kol_id).first()
+        kol = ticker_kol_map.get(r.kol_id)
         results.append({
             "type"       : "recommendation",
-            "handle"     : kol.handle,
+            "handle"     : kol.handle if kol else "unknown",
             "ticker"     : r.ticker,
             "direction"  : r.direction,
             "conviction" : r.conviction,

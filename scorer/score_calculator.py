@@ -9,11 +9,6 @@ from db.models import get_session, Recommendation, PriceSnapshot, KOLScore, KOL
 PERIOD_DAYS = {"T7D": 7, "T30D": 30}
 
 def is_correct_call(direction: str, price_t0: float, price_tx: float) -> bool:
-    """
-    A call is correct if:
-    - BUY/LONG → price went UP
-    - SELL/SHORT → price went DOWN
-    """
     if direction in ("BUY", "LONG"):
         return price_tx > price_t0
     elif direction in ("SELL", "SHORT"):
@@ -21,11 +16,9 @@ def is_correct_call(direction: str, price_t0: float, price_tx: float) -> bool:
     return False
 
 def get_return_pct(direction: str, price_t0: float, price_tx: float) -> float:
-    """Calculate % return if you followed the recommendation."""
     if price_t0 == 0:
         return 0.0
     raw_return = (price_tx - price_t0) / price_t0 * 100
-    # For SELL/SHORT, profit is inverse
     if direction in ("SELL", "SHORT"):
         return -raw_return
     return raw_return
@@ -33,69 +26,65 @@ def get_return_pct(direction: str, price_t0: float, price_tx: float) -> float:
 def calculate_scores():
     """
     Calculate accuracy scores for every KOL across all time periods.
-    Scores are saved to kol_scores table and printed as a leaderboard.
+    Bulk-loads all recs and snapshots upfront to avoid N+1 queries.
     """
     session = get_session()
-    kols    = session.query(KOL).all()
-    periods = ["T7D", "T30D", "all"]
 
     print("🏆 Calculating KOL accuracy scores...\n")
 
-    # Wipe all existing scores so stale rows (e.g. from old period logic) don't persist
+    # ── Bulk load everything upfront ─────────────────────────────
+    kols = session.query(KOL).all()
+    all_recs = session.query(Recommendation).all()
+    all_snaps = session.query(PriceSnapshot).all()
+
+    # Index recs by kol_id
+    recs_by_kol: dict[int, list] = {}
+    for rec in all_recs:
+        recs_by_kol.setdefault(rec.kol_id, []).append(rec)
+
+    # Index snapshots by (rec_id, snapshot_type) → price
+    snap_index: dict[tuple, float] = {}
+    for snap in all_snaps:
+        snap_index[(snap.recommendation_id, snap.snapshot_type)] = snap.price
+
+    # Wipe all existing scores so stale rows don't persist
     session.query(KOLScore).delete()
     session.commit()
 
+    periods = ["T7D", "T30D", "all"]
     all_scores = []
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     for kol in kols:
-        recs = session.query(Recommendation).filter_by(kol_id=kol.id).all()
-
+        recs = recs_by_kol.get(kol.id, [])
         if not recs:
             continue
 
         for period in periods:
-            # Filter recs to this period's lookback window; "all" uses all recs
             if period == "all":
                 window_recs = recs
             else:
-                cutoff      = datetime.utcnow() - timedelta(days=PERIOD_DAYS[period])
+                cutoff = now - timedelta(days=PERIOD_DAYS[period])
                 window_recs = [r for r in recs if r.posted_at and r.posted_at >= cutoff]
 
-            total_calls   = len(window_recs)   # all predictions in window (incl. pending)
+            total_calls   = len(window_recs)
             correct_calls = 0
             total_return  = 0.0
             evaluated     = 0
 
             for rec in window_recs:
-                # Get T0 price (baseline)
-                t0 = session.query(PriceSnapshot).filter_by(
-                    recommendation_id=rec.id,
-                    snapshot_type="T0"
-                ).first()
-
-                # Use best available outcome snapshot (T7D → T30D).
-                # Recent predictions won't have T30D data yet but can
-                # still be evaluated using T7D if it exists.
-                tx = None
-                for snap_type in ["T7D", "T30D"]:
-                    tx = session.query(PriceSnapshot).filter_by(
-                        recommendation_id=rec.id,
-                        snapshot_type=snap_type
-                    ).first()
-                    if tx:
-                        break
-
-                # Win rate only counts evaluated predictions (both snapshots exist)
-                if not t0 or not tx:
+                t0_price = snap_index.get((rec.id, "T0"))
+                if t0_price is None:
                     continue
 
-                evaluated    += 1
-                correct       = is_correct_call(rec.direction, t0.price, tx.price)
-                ret           = get_return_pct(rec.direction, t0.price, tx.price)
+                tx_price = snap_index.get((rec.id, "T7D")) or snap_index.get((rec.id, "T30D"))
+                if tx_price is None:
+                    continue
 
-                if correct:
+                evaluated += 1
+                if is_correct_call(rec.direction, t0_price, tx_price):
                     correct_calls += 1
-                total_return += ret
+                total_return += get_return_pct(rec.direction, t0_price, tx_price)
 
             if total_calls == 0:
                 continue
@@ -103,29 +92,16 @@ def calculate_scores():
             win_rate   = correct_calls / evaluated * 100 if evaluated > 0 else 0
             avg_return = total_return  / evaluated       if evaluated > 0 else 0
 
-            # Save or update score in database
-            existing = session.query(KOLScore).filter_by(
-                kol_id=kol.id,
-                period=period
-            ).first()
-
-            if existing:
-                existing.total_calls      = total_calls
-                existing.correct_calls    = correct_calls
-                existing.win_rate         = win_rate
-                existing.avg_return_pct   = avg_return
-                existing.score_updated_at = datetime.now(timezone.utc)
-            else:
-                score = KOLScore(
-                    kol_id           = kol.id,
-                    period           = period,
-                    total_calls      = total_calls,
-                    correct_calls    = correct_calls,
-                    win_rate         = win_rate,
-                    avg_return_pct   = avg_return,
-                    score_updated_at = datetime.now(timezone.utc)
-                )
-                session.add(score)
+            score = KOLScore(
+                kol_id           = kol.id,
+                period           = period,
+                total_calls      = total_calls,
+                correct_calls    = correct_calls,
+                win_rate         = win_rate,
+                avg_return_pct   = avg_return,
+                score_updated_at = datetime.now(timezone.utc),
+            )
+            session.add(score)
 
             all_scores.append({
                 "handle"       : kol.handle,
@@ -149,7 +125,6 @@ def print_leaderboard(scores: list):
         if not period_scores:
             continue
 
-        # Sort by win rate descending
         period_scores.sort(key=lambda x: x["win_rate"], reverse=True)
 
         print(f"── {period} Leaderboard {'─' * 40}")
