@@ -948,18 +948,6 @@
     .carousel-ticker { font-weight: 800; font-size: 20px; color: #fff; }
     .carousel-handle { color: #00ff88; font-size: 13px; margin-top: 4px; cursor: pointer; }
     .carousel-handle:hover { opacity: 0.8; }
-    .carousel-return {
-      display: inline-block;
-      font-size: 12px;
-      font-weight: 700;
-      padding: 2px 7px;
-      border-radius: 4px;
-      margin-left: 8px;
-      vertical-align: middle;
-    }
-    .carousel-return.pos { background: rgba(0,255,136,0.12); color: #00ff88; }
-    .carousel-return.neg { background: rgba(255,68,68,0.12); color: #ff4444; }
-    .carousel-return.neu { background: rgba(136,136,136,0.12); color: #888; }
     .carousel-excerpt {
       color: #666;
       font-size: 11px;
@@ -2343,20 +2331,24 @@
       const kols = res.data;
       if (!kols.length) { track.innerHTML = '<div class="empty">No KOLs yet.</div>'; return; }
       track.innerHTML = kols.map((kol, i) => {
-        let returnBadge = "";
-        if (kol.avg_return !== null && kol.avg_return !== undefined && kol.total_calls > 0) {
-          const cls = kol.avg_return > 0 ? "pos" : kol.avg_return < 0 ? "neg" : "neu";
-          const sign = kol.avg_return > 0 ? "+" : "";
-          returnBadge = `<span class="carousel-return ${cls}">${sign}${kol.avg_return}%</span>`;
-        }
+        const hasReturn = kol.avg_return !== null && kol.avg_return !== undefined && kol.total_calls > 0;
+        const retCls  = hasReturn ? (kol.avg_return > 0 ? "positive" : kol.avg_return < 0 ? "negative" : "") : "";
+        const retStr  = hasReturn ? (kol.avg_return > 0 ? "+" : "") + kol.avg_return + "%" : "—";
+        const rightPanel = `
+          <div style="text-align:center;padding-left:16px;border-left:1px solid #2a2a2a;min-width:72px;">
+            <div class="metric-value ${retCls}" style="font-size:26px;">${retStr}</div>
+            <div class="metric-label" style="font-size:11px;margin-top:4px;">Avg Return</div>
+          </div>`;
         return `
         <div class="carousel-item${i === 0 ? " active" : ""}">
-          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px;">
-            <span class="carousel-kol-name" onclick="openProfile('${kol.handle}')">@${kol.handle}</span>
-            ${returnBadge}
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div class="carousel-kol-name" onclick="openProfile('${kol.handle}')">@${kol.handle}</div>
+              <div class="carousel-sub">${kol.content_type}</div>
+              <div class="carousel-sub" style="color:#555;margin-top:2px;">Added ${kol.days_since_added === 0 ? "today" : kol.days_since_added + " days ago"}</div>
+            </div>
+            ${rightPanel}
           </div>
-          <div class="carousel-sub">${kol.content_type}</div>
-          <div class="carousel-sub" style="color:#555;">Added ${kol.days_since_added === 0 ? "today" : kol.days_since_added + " days ago"}</div>
         </div>`;
       }).join("");
       _setupCarousel("new-kols-track", "new-kols-dots", kols.length);
