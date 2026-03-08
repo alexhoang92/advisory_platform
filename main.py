@@ -97,13 +97,41 @@ def run_now():
     run_daily_pipeline()
 
 
+def _pipeline_ran_today() -> bool:
+    """Return True if the scraper already ran today (last crawled_at is today's date)."""
+    try:
+        from db.models import get_session, RawTweet
+        from sqlalchemy import func
+        s = get_session()
+        latest = s.query(func.max(RawTweet.crawled_at)).scalar()
+        s.close()
+        if latest is None:
+            return False
+        # latest may be a string or datetime depending on SQLite driver
+        latest_str = str(latest)[:10]  # "YYYY-MM-DD"
+        today_str  = datetime.utcnow().strftime("%Y-%m-%d")
+        return latest_str == today_str
+    except Exception:
+        return False
+
+
 def start_scheduler():
     """
     Start the daily scheduler.
     Runs pipeline every day at 7:30 AM server local time.
     Set TZ=America/New_York in your environment for ET.
+
+    On startup: if it's already past 07:30 and the pipeline hasn't run
+    today (e.g. after a deploy restart), run it immediately so a redeploy
+    never silently skips a day.
     """
     schedule.every().day.at("07:30").do(run_daily_pipeline)
+
+    now = datetime.utcnow()
+    scheduled_today = now.hour > 7 or (now.hour == 7 and now.minute >= 30)
+    if scheduled_today and not _pipeline_ran_today():
+        print("⚡ Missed today's scheduled run — executing pipeline now...")
+        run_daily_pipeline()
 
     print(f"⏰ Scheduler started — pipeline will run daily at 7:30 AM ET")
     print(f"   Current time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
