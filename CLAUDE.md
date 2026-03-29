@@ -259,14 +259,14 @@ Use **Lucide React** — clean, consistent stroke weight. Never use filled icons
 
 ## 5. MVP Roadmap
 
-### Phase 1 — Foundation (current)
-- [ ] Monorepo setup (Turborepo, TypeScript, Vite, NestJS)
-- [ ] Design system (CSS variables, Tailwind config, base components)
-- [ ] Auth: register (with role selection), login, refresh tokens
-- [ ] User profiles: view and edit
-- [ ] Basic post creation (public visibility only)
-- [ ] Home feed (all public posts, paginated)
-- [ ] API scaffold with Prisma schema and first migrations
+### Phase 1 — Foundation ✅
+- [x] Monorepo setup (Turborepo, TypeScript, Vite, NestJS)
+- [x] Design system (CSS variables, Tailwind config, base components)
+- [x] Auth: register (with role selection), login, refresh tokens
+- [x] User profiles: view and edit
+- [x] Basic post creation (public visibility only)
+- [x] Home feed (all public posts, paginated)
+- [x] API scaffold with Prisma schema and first migrations
 
 ### Phase 2 — Monetization Core
 - [ ] Expert profiles with ExpertProfile extension
@@ -431,5 +431,5 @@ POLYGON_API_KEY=
 
 ---
 
-_Last updated: Phase 1 scaffold_
-_Next task: Build auth pages + home feed UI + Express API scaffold_
+_Last updated: 2026-03-29 — Phase 1 complete_
+_Next task: Phase 2 — Monetization Core (Expert profiles, post paywalls, Stripe Connect, follow system)_

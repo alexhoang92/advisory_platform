@@ -1,0 +1,244 @@
+// Hamilton Platform — Prisma Schema
+// Phase 1 scaffold
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  expert
+  retail
+  admin
+}
+
+enum PostVisibility {
+  public
+  preview
+  subscribers_only
+}
+
+enum PostType {
+  discussion
+  trade_call
+  research
+  update
+}
+
+enum TradeDirection {
+  long
+  short
+}
+
+enum TradeTimeframe {
+  intraday
+  swing
+  position
+  long_term
+}
+
+enum TradeConviction {
+  low
+  medium
+  high
+}
+
+enum CallStatus {
+  open
+  closed
+  stopped_out
+}
+
+enum SubscriptionStatus {
+  active
+  cancelled
+  past_due
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  password_hash    String
+  username         String   @unique
+  display_name     String
+  avatar_url       String?
+  role             UserRole @default(retail)
+  bio              String?
+  location         String?
+  website          String?
+  stripe_account_id String?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  // Relations
+  expert_profile   ExpertProfile?
+  posts            Post[]           @relation("AuthorPosts")
+  follows_given    Follow[]         @relation("FollowerRelation")
+  follows_received Follow[]         @relation("FollowingRelation")
+  subscriptions    Subscription[]   @relation("SubscriberRelation")
+  expert_subs      Subscription[]   @relation("ExpertSubRelation")
+  post_unlocks     PostUnlock[]
+  tips_sent        Tip[]            @relation("TipSender")
+  portfolio_calls  PortfolioCall[]  @relation("ExpertCalls")
+  credibility_score CredibilityScore?
+
+  @@map("users")
+}
+
+model ExpertProfile {
+  user_id                    String   @id
+  specializations            String[]
+  subscription_price_monthly Decimal  @default(0) @db.Decimal(12, 2)
+  credibility_score          Decimal  @default(0) @db.Decimal(5, 2)
+  total_followers            Int      @default(0)
+  win_rate                   Decimal  @default(0) @db.Decimal(5, 4)
+  avg_return                 Decimal  @default(0) @db.Decimal(10, 4)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("expert_profiles")
+}
+
+model Post {
+  id           String         @id @default(cuid())
+  author_id    String
+  title        String
+  slug         String         @unique
+  body_public  String
+  body_locked  String?
+  visibility   PostVisibility @default(public)
+  unlock_price Decimal?       @db.Decimal(12, 2)
+  tickers      String[]
+  post_type    PostType       @default(discussion)
+  published_at DateTime?
+  created_at   DateTime       @default(now())
+  updated_at   DateTime       @updatedAt
+
+  author          User            @relation("AuthorPosts", fields: [author_id], references: [id], onDelete: Cascade)
+  portfolio_calls PortfolioCall[]
+  unlocks         PostUnlock[]
+  tips            Tip[]
+
+  @@index([author_id])
+  @@index([created_at(sort: Desc)])
+  @@map("posts")
+}
+
+model PortfolioCall {
+  id             String          @id @default(cuid())
+  post_id        String
+  expert_id      String
+  ticker         String
+  direction      TradeDirection
+  entry_price    Decimal?        @db.Decimal(12, 2)
+  target_price   Decimal         @db.Decimal(12, 2)
+  stop_loss      Decimal         @db.Decimal(12, 2)
+  timeframe      TradeTimeframe
+  conviction     TradeConviction
+  status         CallStatus      @default(open)
+  outcome_return Decimal?        @db.Decimal(10, 4)
+  opened_at      DateTime        @default(now())
+  closed_at      DateTime?
+
+  post   Post @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  expert User @relation("ExpertCalls", fields: [expert_id], references: [id], onDelete: Cascade)
+
+  @@index([expert_id])
+  @@index([ticker])
+  @@map("portfolio_calls")
+}
+
+model Follow {
+  id           String   @id @default(cuid())
+  follower_id  String
+  following_id String
+  created_at   DateTime @default(now())
+
+  follower  User @relation("FollowerRelation", fields: [follower_id], references: [id], onDelete: Cascade)
+  following User @relation("FollowingRelation", fields: [following_id], references: [id], onDelete: Cascade)
+
+  @@unique([follower_id, following_id])
+  @@index([following_id])
+  @@map("follows")
+}
+
+model Subscription {
+  id                    String             @id @default(cuid())
+  subscriber_id         String
+  expert_id             String
+  stripe_subscription_id String
+  status                SubscriptionStatus @default(active)
+  current_period_end    DateTime
+  created_at            DateTime           @default(now())
+
+  subscriber User @relation("SubscriberRelation", fields: [subscriber_id], references: [id], onDelete: Cascade)
+  expert     User @relation("ExpertSubRelation", fields: [expert_id], references: [id], onDelete: Cascade)
+
+  @@index([subscriber_id])
+  @@index([expert_id])
+  @@map("subscriptions")
+}
+
+model PostUnlock {
+  id                      String   @id @default(cuid())
+  user_id                 String
+  post_id                 String
+  amount_paid             Decimal  @db.Decimal(12, 2)
+  stripe_payment_intent_id String
+  unlocked_at             DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, post_id])
+  @@map("post_unlocks")
+}
+
+model Tip {
+  id                      String   @id @default(cuid())
+  from_user_id            String
+  post_id                 String
+  amount                  Decimal  @db.Decimal(12, 2)
+  stripe_payment_intent_id String
+  created_at              DateTime @default(now())
+
+  from_user User @relation("TipSender", fields: [from_user_id], references: [id], onDelete: Cascade)
+  post      Post @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@index([post_id])
+  @@map("tips")
+}
+
+model CredibilityScore {
+  expert_id          String   @id
+  score              Decimal  @db.Decimal(5, 2)
+  win_rate           Decimal  @db.Decimal(5, 4)
+  avg_return_per_call Decimal @db.Decimal(10, 4)
+  total_calls        Int
+  calls_closed       Int
+  follower_growth_30d Int
+  computed_at        DateTime @default(now()) @updatedAt
+
+  expert User @relation(fields: [expert_id], references: [id], onDelete: Cascade)
+
+  @@map("credibility_scores")
+}
+
+model Ticker {
+  symbol     String   @id
+  name       String
+  sector     String?
+  last_price Decimal? @db.Decimal(12, 2)
+  change_pct Decimal? @db.Decimal(8, 4)
+  synced_at  DateTime @default(now()) @updatedAt
+
+  @@map("tickers")
+}
