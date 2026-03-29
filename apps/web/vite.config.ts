@@ -9,10 +9,15 @@ export default defineConfig({
       '@hamilton/shared': path.resolve(__dirname, '../../packages/shared/src/index.ts'),
     },
   },
+  optimizeDeps: {
+    // Exclude from pre-bundling so the resolve.alias (TypeScript source) is used
+    exclude: ['@hamilton/shared'],
+  },
   server: {
     port: 5173,
     fs: {
-      allow: ['../..'],
+      // Absolute path — allow serving files from the monorepo root
+      allow: [path.resolve(__dirname, '../..')],
     },
     proxy: {
       '/api': {
