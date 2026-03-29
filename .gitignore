@@ -56,3 +56,8 @@ coverage/
 
 # Misc
 *.local
+
+# Python
+__pycache__/
+*.db
+venv/
