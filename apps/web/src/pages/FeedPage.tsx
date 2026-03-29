@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { useInfinitePosts } from '../hooks/usePosts';
 import { useAuthStore } from '../stores/authStore';
+import { KolLeaderboard } from '../components/kol/KolLeaderboard';
 
 function RightPanel() {
   const user = useAuthStore((s) => s.user);
@@ -50,6 +51,9 @@ function RightPanel() {
           are computed automatically from published trade calls.
         </p>
       </Card>
+
+      {/* KOL Leaderboard */}
+      <KolLeaderboard />
     </div>
   );
 }
