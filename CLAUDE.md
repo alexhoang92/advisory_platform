@@ -267,4 +267,5 @@ Use **Lucide React** — clean, consistent stroke weight. Never use filled icons
 - [x] Basic post creation (public visibility only)
 - [x] Home feed (all public posts, paginated)
 - [x] API scaffold with Prisma schema and first migrations
+- [x] Cloned repos https://github.com/alexhoang92/kol-tracker to this repos and migrated running processes and database so kol-tracker can run and provide data to Hamilton directly. Cleaned unncessary code from kol-tracker repo
 
