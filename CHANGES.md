@@ -206,6 +206,7 @@ npx vite --host 0.0.0.0
 | Running `npx tsc` from wrong dir | Always `cd` into the package first |
 | Port 5173 in use | `pkill -f vite` then restart |
 | Shared package CJS files in `src/` | Delete any `.js` files in `packages/shared/src/` |
+| `PrismaClientInitializationError: Can't reach database server at localhost:5433` | `apps/api/.env` had wrong port/credentials. Correct `DATABASE_URL` is `postgresql://postgres:password@localhost:5432/hamilton` (matches docker-compose.yml). Run `docker compose up -d` first, then `npx prisma migrate deploy` from `apps/api/`. |
 
 **Vite cache reset (if blank page returns)**
 ```bash
