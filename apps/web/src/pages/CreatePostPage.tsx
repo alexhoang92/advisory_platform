@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, X, Plus } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { CreatePostSchema, type CreatePostInput } from '@hamilton/shared';
 import { useCreatePost } from '../hooks/usePosts';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Card } from '../components/ui/Card';
 import { Input, Textarea } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
-import { TickerChip } from '../components/posts/TickerChip';
-import { ApiError } from '../lib/api';
+import { MentionInput, type TickerMention, type UserMention } from '../components/posts/MentionInput';
+import { ImageUpload, extractPastedImages } from '../components/posts/ImageUpload';
+import { ApiError, getStoredToken } from '../lib/api';
 
 const POST_TYPES = [
   { value: 'discussion', label: 'Discussion' },
@@ -29,8 +30,9 @@ export function CreatePostPage() {
   const navigate = useNavigate();
   const createPost = useCreatePost();
 
-  const [tickerInput, setTickerInput] = useState('');
-  const [tickers, setTickers] = useState<string[]>([]);
+  const [tickerTags, setTickerTags] = useState<TickerMention[]>([]);
+  const [userMentions, setUserMentions] = useState<UserMention[]>([]);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
 
   const {
     register,
@@ -45,38 +47,24 @@ export function CreatePostPage() {
       post_type: 'discussion',
       visibility: 'public',
       tickers: [],
+      ticker_tags: [],
+      user_mentions: [],
     },
   });
 
   const visibility = watch('visibility');
   const postType = watch('post_type');
 
-  function addTicker() {
-    const cleaned = tickerInput.trim().toUpperCase();
-    if (cleaned && !tickers.includes(cleaned)) {
-      const next = [...tickers, cleaned];
-      setTickers(next);
-      setValue('tickers', next);
-    }
-    setTickerInput('');
-  }
-
-  function removeTicker(ticker: string) {
-    const next = tickers.filter((t) => t !== ticker);
-    setTickers(next);
-    setValue('tickers', next);
-  }
-
-  function handleTickerKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      addTicker();
-    }
-  }
-
   async function onSubmit(data: CreatePostInput) {
+    const tickers = tickerTags.map((t) => t.ticker);
     try {
-      const post = await createPost.mutateAsync({ ...data, tickers });
+      const post = await createPost.mutateAsync({
+        ...data,
+        tickers,
+        ticker_tags: tickers,
+        user_mentions: userMentions.map((u) => u.username),
+        image_urls: imageUrls,
+      });
       void navigate(`/posts/${post.id}`);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -85,6 +73,18 @@ export function CreatePostPage() {
         setError('root', { message: 'Failed to publish post. Please try again.' });
       }
     }
+  }
+
+  // Keep hidden form fields in sync for Zod validation
+  function handleTickerTagsChange(tags: TickerMention[]) {
+    setTickerTags(tags);
+    setValue('ticker_tags', tags.map((t) => t.ticker));
+    setValue('tickers', tags.map((t) => t.ticker));
+  }
+
+  function handleUserMentionsChange(mentions: UserMention[]) {
+    setUserMentions(mentions);
+    setValue('user_mentions', mentions.map((u) => u.username));
   }
 
   return (
@@ -109,7 +109,33 @@ export function CreatePostPage() {
           </p>
         </div>
 
-        <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="flex flex-col gap-5">
+        <form
+          onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+          onPaste={(e) => {
+            const files = extractPastedImages(e);
+            if (files.length === 0) return;
+            e.preventDefault();
+            void (async () => {
+              const token = getStoredToken();
+              const urls: string[] = [];
+              for (const file of files) {
+                const formData = new FormData();
+                formData.append('file', file);
+                const res = await fetch('/api/v1/uploads/image', {
+                  method: 'POST',
+                  headers: token ? { Authorization: `Bearer ${token}` } : {},
+                  body: formData,
+                });
+                if (res.ok) {
+                  const json = (await res.json()) as { data: { url: string } };
+                  urls.push(json.data.url);
+                }
+              }
+              if (urls.length > 0) setImageUrls((prev) => [...prev, ...urls]);
+            })();
+          }}
+          className="flex flex-col gap-5"
+        >
           {/* Post type */}
           <div>
             <p className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wide mb-2">
@@ -214,42 +240,16 @@ export function CreatePostPage() {
             />
           )}
 
-          {/* Tickers */}
-          <div>
-            <p className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wide mb-2">
-              Tickers
-            </p>
-            <div className="flex gap-2 mb-2">
-              <input
-                type="text"
-                value={tickerInput}
-                onChange={(e) => setTickerInput(e.target.value.toUpperCase())}
-                onKeyDown={handleTickerKeyDown}
-                placeholder="e.g. NVDA"
-                className="flex-1 px-3 py-2 rounded bg-[var(--color-bg-elevated)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm font-mono uppercase placeholder:normal-case placeholder:font-body placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
-              />
-              <Button type="button" variant="secondary" size="sm" onClick={addTicker}>
-                <Plus size={14} />
-                Add
-              </Button>
-            </div>
-            {tickers.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {tickers.map((ticker) => (
-                  <span key={ticker} className="inline-flex items-center gap-1">
-                    <TickerChip symbol={ticker} />
-                    <button
-                      type="button"
-                      onClick={() => removeTicker(ticker)}
-                      className="text-[var(--color-text-tertiary)] hover:text-[var(--color-negative)] transition-colors"
-                    >
-                      <X size={12} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Image upload */}
+          <ImageUpload imageUrls={imageUrls} onChange={setImageUrls} />
+
+          {/* Mentions: $TICKER and @user */}
+          <MentionInput
+            tickerTags={tickerTags}
+            userMentions={userMentions}
+            onTickerTagsChange={handleTickerTagsChange}
+            onUserMentionsChange={handleUserMentionsChange}
+          />
 
           {errors.root && (
             <div className="px-3 py-2.5 rounded bg-[#ff500015] border border-[#ff500030]">

@@ -19,6 +19,9 @@ export const CreatePostSchema = z.object({
   visibility: PostVisibilitySchema.default('public'),
   unlock_price: z.number().int().nonnegative().optional().nullable(),
   tickers: z.array(z.string().toUpperCase()).default([]),
+  image_urls: z.array(z.string()).default([]),
+  ticker_tags: z.array(z.string().toUpperCase()).default([]),
+  user_mentions: z.array(z.string()).default([]),
   post_type: PostTypeSchema.default('discussion'),
   published_at: z.string().datetime().optional().nullable(),
 });
@@ -32,6 +35,9 @@ export const UpdatePostSchema = z.object({
   visibility: PostVisibilitySchema.optional(),
   unlock_price: z.number().int().nonnegative().optional().nullable(),
   tickers: z.array(z.string().toUpperCase()).optional(),
+  image_urls: z.array(z.string()).optional(),
+  ticker_tags: z.array(z.string().toUpperCase()).optional(),
+  user_mentions: z.array(z.string()).optional(),
   post_type: PostTypeSchema.optional(),
   published_at: z.string().datetime().optional().nullable(),
 });

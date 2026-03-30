@@ -3,6 +3,7 @@ import {
   Get,
   Patch,
   Param,
+  Query,
   Body,
   UseGuards,
   Request,
@@ -18,6 +19,11 @@ interface RequestWithUser extends Request {
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Get('search')
+  async search(@Query('q') q: string, @Query('limit') limit?: string) {
+    return this.usersService.searchUsers(q ?? '', limit ? parseInt(limit, 10) : 6);
+  }
 
   @Get(':username')
   async findByUsername(@Param('username') username: string) {

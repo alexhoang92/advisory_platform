@@ -23,6 +23,28 @@ interface PrismaUser {
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async searchUsers(
+    q: string,
+    limit = 6,
+  ): Promise<Array<Pick<DomainUser, 'id' | 'username' | 'display_name' | 'avatar_url'>>> {
+    const term = q.trim();
+    if (!term) return [];
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const users = await (this.prisma.user.findMany as (args: any) => Promise<PrismaUser[]>)({
+      where: {
+        OR: [
+          { username: { contains: term, mode: 'insensitive' } },
+          { display_name: { contains: term, mode: 'insensitive' } },
+        ],
+      },
+      take: Math.min(limit, 20),
+      select: { id: true, username: true, display_name: true, avatar_url: true },
+    });
+
+    return users as Array<Pick<DomainUser, 'id' | 'username' | 'display_name' | 'avatar_url'>>;
+  }
+
   async findByUsername(username: string): Promise<DomainUser & { expert_profile?: unknown }> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const user = await (this.prisma.user.findUnique as (args: any) => Promise<(PrismaUser & { expert_profile?: unknown }) | null>)({

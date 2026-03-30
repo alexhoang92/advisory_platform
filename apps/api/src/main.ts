@@ -1,20 +1,25 @@
 import 'reflect-metadata';
+import { join } from 'path';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Global API prefix
   app.setGlobalPrefix('api/v1');
 
+  // Serve uploaded files at /uploads/*
+  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
+
   // Global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,         // Strip unknown properties
-      forbidNonWhitelisted: true, // Throw on unknown properties
-      transform: true,         // Auto-transform to DTO types
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
       transformOptions: {
         enableImplicitConversion: true,
       },

@@ -6,6 +6,8 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PostsModule } from './posts/posts.module';
 import { KolModule } from './kol/kol.module';
+import { TagsModule } from './tags/tags.module';
+import { UploadsModule } from './uploads/uploads.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 
@@ -20,6 +22,8 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
     UsersModule,
     PostsModule,
     KolModule,
+    TagsModule,
+    UploadsModule,
   ],
   providers: [
     {

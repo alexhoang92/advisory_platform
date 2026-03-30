@@ -45,9 +45,10 @@ export class PostsController {
     @Request() req: RequestWithUser,
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
+    @Query('ticker') ticker?: string,
   ) {
     const userId: string | undefined = req.user?.id ?? undefined;
-    return this.postsService.findAll(cursor, limit ? parseInt(limit, 10) : 20, userId);
+    return this.postsService.findAll(cursor, limit ? parseInt(limit, 10) : 20, userId, ticker);
   }
 
   @Get(':id')

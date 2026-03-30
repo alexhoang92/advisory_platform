@@ -30,6 +30,29 @@ export function useInfinitePosts() {
   });
 }
 
+// ─── Posts by Ticker ─────────────────────────────────────────────────────────
+
+export function useInfinitePostsByTicker(ticker: string) {
+  return useInfiniteQuery({
+    queryKey: [POSTS_KEY, 'ticker', ticker],
+    queryFn: async ({ pageParam }) => {
+      const cursor = pageParam as string | undefined;
+      const params = new URLSearchParams({ ticker, limit: '20' });
+      if (cursor) params.set('cursor', cursor);
+      const response = await api.get<Post[]>(`/posts?${params.toString()}`);
+      return response;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage: ApiResponse<Post[]>) => {
+      if (lastPage.meta?.has_more && lastPage.meta.cursor) {
+        return lastPage.meta.cursor;
+      }
+      return undefined;
+    },
+    enabled: Boolean(ticker),
+  });
+}
+
 // ─── Single Post ──────────────────────────────────────────────────────────────
 
 export function usePost(id: string) {

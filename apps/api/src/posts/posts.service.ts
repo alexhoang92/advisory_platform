@@ -13,8 +13,25 @@ import {
   ApiMeta,
 } from '@hamilton/shared';
 
-const postWithAuthorInclude = {
+const postWithRelationsInclude = {
   author: {
+    select: {
+      id: true,
+      username: true,
+      display_name: true,
+      avatar_url: true,
+    },
+  },
+  ticker_tags: {
+    select: {
+      id: true,
+      ticker: true,
+      name: true,
+      market: true,
+      asset_type: true,
+    },
+  },
+  user_mentions: {
     select: {
       id: true,
       username: true,
@@ -24,7 +41,7 @@ const postWithAuthorInclude = {
   },
 } satisfies Prisma.PostInclude;
 
-type PostWithAuthor = Prisma.PostGetPayload<{ include: typeof postWithAuthorInclude }>;
+type PostWithRelations = Prisma.PostGetPayload<{ include: typeof postWithRelationsInclude }>;
 
 @Injectable()
 export class PostsService {
@@ -36,6 +53,13 @@ export class PostsService {
     const exists = await this.prisma.post.findUnique({ where: { slug } });
     const finalSlug = exists ? `${slug}-${Date.now()}` : slug;
 
+    // Resolve ticker_tags → asset_tag IDs (upsert unknown tickers)
+    const tickerSymbols = this.mergeTickerArrays(dto.tickers, dto.ticker_tags);
+    const tickerTagIds = await this.resolveTickerTags(tickerSymbols);
+
+    // Resolve user_mentions → user IDs
+    const mentionedUserIds = await this.resolveUserMentions(dto.user_mentions ?? []);
+
     const post = await this.prisma.post.create({
       data: {
         author_id: userId,
@@ -45,11 +69,14 @@ export class PostsService {
         body_locked: dto.body_locked ?? null,
         visibility: dto.visibility ?? 'public',
         unlock_price: dto.unlock_price != null ? dto.unlock_price : null,
-        tickers: dto.tickers?.map((t) => t.toUpperCase()) ?? [],
+        tickers: tickerSymbols,
+        image_urls: dto.image_urls ?? [],
         post_type: dto.post_type ?? 'discussion',
         published_at: dto.published_at ? new Date(dto.published_at) : new Date(),
+        ticker_tags: { connect: tickerTagIds.map((id) => ({ id })) },
+        user_mentions: { connect: mentionedUserIds.map((id) => ({ id })) },
       },
-      include: postWithAuthorInclude,
+      include: postWithRelationsInclude,
     });
 
     return this.serializePost(post, true);
@@ -59,15 +86,23 @@ export class PostsService {
     cursor?: string,
     limit = 20,
     requestingUserId?: string,
+    ticker?: string,
   ): Promise<ApiResponse<DomainPost[]>> {
     const take = Math.min(limit, 100);
+
+    const where: import('@prisma/client').Prisma.PostWhereInput = {
+      visibility: { not: 'subscribers_only' },
+      ...(ticker && {
+        ticker_tags: { some: { ticker: ticker.toUpperCase() } },
+      }),
+    };
 
     const posts = await this.prisma.post.findMany({
       take: take + 1,
       ...(cursor && { cursor: { id: cursor }, skip: 1 }),
       orderBy: { created_at: 'desc' },
-      where: { visibility: { not: 'subscribers_only' } },
-      include: postWithAuthorInclude,
+      where,
+      include: postWithRelationsInclude,
     });
 
     const hasMore = posts.length > take;
@@ -98,7 +133,7 @@ export class PostsService {
   async findOne(id: string, requestingUserId?: string): Promise<DomainPost> {
     const post = await this.prisma.post.findUnique({
       where: { id },
-      include: postWithAuthorInclude,
+      include: postWithRelationsInclude,
     });
 
     if (!post) throw new NotFoundException('Post not found');
@@ -141,16 +176,30 @@ export class PostsService {
     if (dto.body_locked !== undefined) updateData.body_locked = dto.body_locked;
     if (dto.visibility !== undefined) updateData.visibility = dto.visibility;
     if (dto.unlock_price !== undefined) updateData.unlock_price = dto.unlock_price;
-    if (dto.tickers !== undefined) updateData.tickers = dto.tickers.map((t) => t.toUpperCase());
     if (dto.post_type !== undefined) updateData.post_type = dto.post_type;
     if (dto.published_at !== undefined) {
       updateData.published_at = dto.published_at ? new Date(dto.published_at) : null;
     }
 
+    // Update tickers / ticker_tags if either is provided
+    if (dto.image_urls !== undefined) updateData.image_urls = dto.image_urls;
+    if (dto.tickers !== undefined || dto.ticker_tags !== undefined) {
+      const tickerSymbols = this.mergeTickerArrays(dto.tickers, dto.ticker_tags);
+      updateData.tickers = tickerSymbols;
+      const tickerTagIds = await this.resolveTickerTags(tickerSymbols);
+      updateData.ticker_tags = { set: tickerTagIds.map((tid) => ({ id: tid })) };
+    }
+
+    // Update user_mentions if provided
+    if (dto.user_mentions !== undefined) {
+      const mentionedUserIds = await this.resolveUserMentions(dto.user_mentions);
+      updateData.user_mentions = { set: mentionedUserIds.map((uid) => ({ id: uid })) };
+    }
+
     const updated = await this.prisma.post.update({
       where: { id },
       data: updateData,
-      include: postWithAuthorInclude,
+      include: postWithRelationsInclude,
     });
 
     return this.serializePost(updated, true);
@@ -165,7 +214,48 @@ export class PostsService {
     return { id };
   }
 
-  // ─── Helpers ───────────────────────────────────────────────────────────────
+  // ─── Ticker / Mention resolution ────────────────────────────────────────────
+
+  private mergeTickerArrays(tickers?: string[], tickerTags?: string[]): string[] {
+    const combined = [
+      ...(tickers ?? []).map((t) => t.toUpperCase()),
+      ...(tickerTags ?? []).map((t) => t.toUpperCase()),
+    ];
+    return [...new Set(combined)];
+  }
+
+  private async resolveTickerTags(tickers: string[]): Promise<string[]> {
+    if (tickers.length === 0) return [];
+
+    const ids: string[] = [];
+    for (const ticker of tickers) {
+      const tag = await this.prisma.assetTag.upsert({
+        where: { ticker },
+        create: {
+          ticker,
+          name: ticker,
+          market: 'us_stock',
+          asset_type: 'stock',
+        },
+        update: {},
+        select: { id: true },
+      });
+      ids.push(tag.id);
+    }
+    return ids;
+  }
+
+  private async resolveUserMentions(usernames: string[]): Promise<string[]> {
+    if (usernames.length === 0) return [];
+
+    const users = await this.prisma.user.findMany({
+      where: { username: { in: usernames } },
+      select: { id: true },
+    });
+    return users.map((u) => u.id);
+  }
+
+  // ─── Access helpers ─────────────────────────────────────────────────────────
 
   private async isSubscribedTo(subscriberId: string, expertId: string): Promise<boolean> {
     const sub = await this.prisma.subscription.findFirst({
@@ -197,7 +287,9 @@ export class PostsService {
     return unlocks.map((u) => u.post_id);
   }
 
-  private serializePost(post: PostWithAuthor, hasAccess: boolean): DomainPost {
+  // ─── Serialization ──────────────────────────────────────────────────────────
+
+  private serializePost(post: PostWithRelations, hasAccess: boolean): DomainPost {
     const hasLockedContent = post.body_locked !== null && post.body_locked !== undefined;
 
     return {
@@ -211,6 +303,20 @@ export class PostsService {
       visibility: post.visibility as DomainPost['visibility'],
       unlock_price: post.unlock_price != null ? post.unlock_price.toNumber() : null,
       tickers: post.tickers,
+      image_urls: post.image_urls,
+      ticker_tags: post.ticker_tags.map((t) => ({
+        id: t.id,
+        ticker: t.ticker,
+        name: t.name,
+        market: t.market,
+        asset_type: t.asset_type,
+      })),
+      user_mentions: post.user_mentions.map((u) => ({
+        id: u.id,
+        username: u.username,
+        display_name: u.display_name,
+        avatar_url: u.avatar_url,
+      })),
       post_type: post.post_type as DomainPost['post_type'],
       published_at: post.published_at?.toISOString() ?? null,
       created_at: post.created_at.toISOString(),

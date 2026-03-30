@@ -43,6 +43,14 @@ export interface ExpertProfile {
   avg_return: number;
 }
 
+export interface AssetTagSummary {
+  id: string;
+  ticker: string;
+  name: string;
+  market: string;
+  asset_type: string;
+}
+
 export interface Post {
   id: string;
   author_id: string;
@@ -61,6 +69,9 @@ export interface Post {
   visibility: PostVisibility;
   unlock_price: number | null; // cents
   tickers: string[];
+  image_urls: string[];
+  ticker_tags: AssetTagSummary[];
+  user_mentions: Array<Pick<User, 'id' | 'username' | 'display_name' | 'avatar_url'>>;
   post_type: PostType;
   published_at: string | null;
   created_at: string;

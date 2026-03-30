@@ -6,6 +6,36 @@ import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { TickerChip } from './TickerChip';
 
+const MAX_VISIBLE_IMAGES = 4;
+
+function ImageGrid({ urls }: { urls: string[] }) {
+  const visible = urls.slice(0, MAX_VISIBLE_IMAGES);
+  const overflow = urls.length - MAX_VISIBLE_IMAGES;
+  const cols = visible.length === 1 ? 'grid-cols-1' : 'grid-cols-2';
+
+  return (
+    <div className={`px-4 pb-3 grid ${cols} gap-1`}>
+      {visible.map((url, i) => {
+        const isLast = i === MAX_VISIBLE_IMAGES - 1 && overflow > 0;
+        return (
+          <div
+            key={url}
+            className="relative rounded overflow-hidden bg-[var(--color-bg-elevated)]"
+            style={{ aspectRatio: visible.length === 1 ? '16/9' : '1/1' }}
+          >
+            <img src={url} alt="" className="w-full h-full object-cover" />
+            {isLast && (
+              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <span className="text-white font-semibold text-lg">+{overflow}</span>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 interface PostCardProps {
   post: Post;
 }
@@ -133,13 +163,26 @@ export function PostCard({ post }: PostCardProps) {
         )}
       </div>
 
-      {/* Tickers */}
-      {post.tickers.length > 0 && (
+      {/* Tickers — prefer enriched ticker_tags, fall back to plain tickers array */}
+      {(post.ticker_tags?.length > 0 || post.tickers.length > 0) && (
         <div className="px-4 pb-3 flex flex-wrap gap-1.5">
-          {post.tickers.map((ticker) => (
-            <TickerChip key={ticker} symbol={ticker} />
-          ))}
+          {post.ticker_tags?.length > 0
+            ? post.ticker_tags.map((tag) => (
+                <TickerChip
+                  key={tag.ticker}
+                  symbol={tag.ticker}
+                  to={`/tag/${tag.ticker}`}
+                />
+              ))
+            : post.tickers.map((ticker) => (
+                <TickerChip key={ticker} symbol={ticker} to={`/tag/${ticker}`} />
+              ))}
         </div>
+      )}
+
+      {/* Images */}
+      {post.image_urls?.length > 0 && (
+        <ImageGrid urls={post.image_urls} />
       )}
 
       {/* Footer */}

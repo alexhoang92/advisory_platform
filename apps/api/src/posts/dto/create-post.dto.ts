@@ -43,6 +43,21 @@ export class CreatePostDto {
   tickers?: string[];
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  image_urls?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  ticker_tags?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  user_mentions?: string[];
+
+  @IsOptional()
   @IsIn(['discussion', 'trade_call', 'research', 'update'])
   post_type?: 'discussion' | 'trade_call' | 'research' | 'update';
 

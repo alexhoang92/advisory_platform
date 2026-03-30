@@ -13,6 +13,7 @@ import { ProfilePage } from './pages/ProfilePage';
 import { EditProfilePage } from './pages/EditProfilePage';
 import { PostDetailPage } from './pages/PostDetailPage';
 import { CreatePostPage } from './pages/CreatePostPage';
+import { TagExplorePage } from './pages/TagExplorePage';
 
 export function App() {
   return (
@@ -29,6 +30,9 @@ export function App() {
 
           {/* Profile view — public */}
           <Route path="/profile/:username" element={<ProfilePage />} />
+
+          {/* Tag explore — public */}
+          <Route path="/tag/:ticker" element={<TagExplorePage />} />
 
           {/* Protected routes */}
           <Route
