@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-03-30 — Pipeline-only cleanup (branch: KOL_scraper_clone)
+
+Removed all code not required to run the KOL data pipeline or deliver data
+to Hamilton. Existing database data and all pipeline processes are intact.
+
+### Removed
+- `api.py` — FastAPI server (standalone web UI; not needed for Hamilton data feed)
+- `Procfile`, `railway.json`, `vercel.json` — deployment configs for web hosting
+- `frontend/` — entire HTML/CSS/JS frontend directory (index, how-it-works, disclaimer, feedback, robots.txt, sitemap.xml)
+- `db/migrate_to_postgres.py` — one-shot SQLite→Postgres migration (already complete)
+
+### Updated
+- `db/models.py` — removed frontend-only ORM tables: `KOLRequest`, `Subscriber`, `Waitlist`, `KOLFollow` and their indexes. Core pipeline tables (KOL, RawTweet, Recommendation, PriceSnapshot, KOLScore) unchanged.
+- `run_all.sh` — removed `uvicorn api:app` process; script now starts only the pipeline scheduler.
+- `requirements.txt` — removed `fastapi`, `uvicorn`, `aiofiles`, `resend` (no longer used).
+
+### Verified
+All pipeline modules import and are functional:
+- `crawler/apify_scraper.py`, `parser/llm_parser.py`, `pricer/yfinance_fetch.py`, `scorer/score_calculator.py`
+- `main.py --now` (full pipeline), `backfill.py`, `scrape_new_kols.py`, `discover_kols.py`
+- `db/manage_kols.py` (KOL CRUD)
+
+---
+
 ## 2026-03-29 — KOL Tracker integration (branch: KOL_scraper_clone)
 
 This branch merges a fully-functional KOL (Key Opinion Leader) stock-recommendation

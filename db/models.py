@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, BigInteger, String, Text, Boolean, DateTime, Float, Enum, UniqueConstraint, Index
+from sqlalchemy import create_engine, Column, Integer, BigInteger, String, Text, Boolean, DateTime, Float, Index
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
 import os
@@ -22,8 +22,6 @@ class KOL(Base):
     is_active        = Column(Boolean, default=True)
     last_crawled_at  = Column(DateTime, nullable=True)
     created_at       = Column(DateTime, default=datetime.utcnow)
-    # Baseline follower count for social proof — assigned once randomly (10–20)
-    # Real KOLFollow rows are added on top at display time
     follower_base    = Column(Integer, default=0, nullable=False)
 
 # ── Table 2: Raw Tweets ────────────────────────────────────────
@@ -87,55 +85,12 @@ class KOLScore(Base):
     avg_return_pct   = Column(Float, default=0.0)
     score_updated_at = Column(DateTime, default=datetime.utcnow)
 
-# ── Table 6: KOL Requests ──────────────────────────────────────
-class KOLRequest(Base):
-    __tablename__ = "kol_requests"
-
-    id           = Column(Integer, primary_key=True, autoincrement=True)
-    handle       = Column(String(100), nullable=False)
-    reason       = Column(Text)
-    requested_at = Column(DateTime, default=datetime.utcnow)
-    status       = Column(String(20), default="pending")  # pending / approved / rejected
-
-# ── Table 7: Subscribers ───────────────────────────────────────
-class Subscriber(Base):
-    __tablename__ = "subscribers"
-
-    id            = Column(Integer, primary_key=True, autoincrement=True)
-    email         = Column(String(255), unique=True, nullable=False)
-    subscribed_at = Column(DateTime, default=datetime.utcnow)
-    is_active     = Column(Boolean, default=True)
-
-# ── Table 8: Waitlist ──────────────────────────────────────────
-class Waitlist(Base):
-    __tablename__ = "waitlist"
-
-    id        = Column(Integer, primary_key=True, autoincrement=True)
-    email     = Column(String(255), unique=True, nullable=False)
-    joined_at = Column(DateTime, default=datetime.utcnow)
-
-# ── Table 9: KOL Follows ───────────────────────────────────────
-class KOLFollow(Base):
-    __tablename__ = "kol_follows"
-
-    id          = Column(Integer, primary_key=True, autoincrement=True)
-    email       = Column(String(255), nullable=False)
-    kol_handle  = Column(String(100), nullable=False)
-    followed_at = Column(DateTime, default=datetime.utcnow)
-    is_active   = Column(Boolean, default=True)
-
-    __table_args__ = (
-        UniqueConstraint('email', 'kol_handle', name='uq_email_kol_handle'),
-    )
-
 
 # ── Performance indexes ────────────────────────────────────────
 Index('idx_rec_posted_at',    Recommendation.posted_at)
 Index('idx_rec_ticker',       Recommendation.ticker)
 Index('idx_rec_kol_id',       Recommendation.kol_id)
 Index('idx_raw_is_parsed',    RawTweet.is_parsed)
-Index('idx_kol_follow_email', KOLFollow.email)
-Index('idx_kol_follow_handle',KOLFollow.kol_handle)
 Index('idx_snap_rec_type',    PriceSnapshot.recommendation_id, PriceSnapshot.snapshot_type)
 Index('idx_score_kol_period', KOLScore.kol_id, KOLScore.period)
 
