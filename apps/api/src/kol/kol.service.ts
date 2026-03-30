@@ -18,6 +18,23 @@ export interface KolLeaderboardEntry {
   qualified: boolean;
 }
 
+export interface TopOpportunity {
+  ticker: string;
+  buy_count: number;
+  avg_change_7d: number | null;
+}
+
+export interface RecentCall {
+  id: number;
+  kol_handle: string;
+  display_name: string;
+  ticker: string;
+  direction: string;
+  conviction: string | null;
+  target_price: number | null;
+  posted_at: string;
+}
+
 @Injectable()
 export class KolService implements OnModuleInit, OnModuleDestroy {
   private pool: Pool | null = null;
@@ -99,6 +116,92 @@ export class KolService implements OnModuleInit, OnModuleDestroy {
       return [...qualified, ...unqualified].slice(0, 10);
     } catch (err) {
       console.error('[KolService] leaderboard query failed:', err);
+      return [];
+    }
+  }
+
+  async getTopOpportunities(): Promise<TopOpportunity[]> {
+    if (!this.pool) return [];
+    try {
+      const { rows } = await this.pool.query<{
+        ticker: string;
+        buy_count: number;
+        avg_change_7d: number | null;
+      }>(
+        `SELECT
+           r.ticker,
+           COUNT(*)::int AS buy_count,
+           AVG(
+             CASE
+               WHEN ps7.price > 0
+               THEN ((ps0.price - ps7.price) / ps7.price) * 100
+               ELSE NULL
+             END
+           )::float AS avg_change_7d
+         FROM recommendations r
+         LEFT JOIN price_snapshots ps0
+           ON ps0.recommendation_id = r.id AND ps0.snapshot_type = 'T0'
+         LEFT JOIN price_snapshots ps7
+           ON ps7.recommendation_id = r.id AND ps7.snapshot_type = 'T7D'
+         WHERE r.direction = 'BUY'
+           AND r.posted_at >= NOW() - INTERVAL '7 days'
+         GROUP BY r.ticker
+         ORDER BY buy_count DESC
+         LIMIT 10`,
+      );
+      return rows.map((r) => ({
+        ticker: r.ticker,
+        buy_count: r.buy_count,
+        avg_change_7d: r.avg_change_7d !== null ? Math.round(r.avg_change_7d * 100) / 100 : null,
+      }));
+    } catch (err) {
+      console.error('[KolService] top-opportunities query failed:', err);
+      return [];
+    }
+  }
+
+  async getRecentCalls(limit: number = 20): Promise<RecentCall[]> {
+    if (!this.pool) return [];
+    try {
+      const { rows } = await this.pool.query<{
+        id: number;
+        kol_handle: string;
+        display_name: string | null;
+        ticker: string;
+        direction: string;
+        conviction: string | null;
+        target_price: number | null;
+        posted_at: Date;
+      }>(
+        `SELECT
+           r.id,
+           k.handle AS kol_handle,
+           k.display_name,
+           r.ticker,
+           r.direction,
+           r.conviction,
+           r.target_price,
+           r.posted_at
+         FROM recommendations r
+         JOIN kols k ON k.id = r.kol_id
+         WHERE r.direction IN ('BUY', 'LONG')
+           AND k.is_active = true
+         ORDER BY r.posted_at DESC
+         LIMIT $1`,
+        [limit],
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        kol_handle: r.kol_handle,
+        display_name: r.display_name ?? r.kol_handle,
+        ticker: r.ticker,
+        direction: r.direction,
+        conviction: r.conviction,
+        target_price: r.target_price,
+        posted_at: r.posted_at instanceof Date ? r.posted_at.toISOString() : String(r.posted_at),
+      }));
+    } catch (err) {
+      console.error('[KolService] recent-calls query failed:', err);
       return [];
     }
   }

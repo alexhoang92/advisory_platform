@@ -267,5 +267,188 @@ Use **Lucide React** — clean, consistent stroke weight. Never use filled icons
 - [x] Basic post creation (public visibility only)
 - [x] Home feed (all public posts, paginated)
 - [x] API scaffold with Prisma schema and first migrations
-- [x] Cloned repos https://github.com/alexhoang92/kol-tracker to this repos and migrated running processes and database so kol-tracker can run and provide data to Hamilton directly. Cleaned unncessary code from kol-tracker repo
+- [x] clone gihub repo https://github.com/alexhoang92/kol-tracker to this repo, integrated code to make KOL-tracker a subcall process in this repos. Remove unncessary front end setup
 
+### Phase 2 — Monetization Core
+- [ ] Expert profiles with ExpertProfile extension
+- [ ] Post paywall: preview + locked body + per-post unlock pricing
+- [ ] Tip mechanic: send tip on a post
+- [ ] Follow system
+- [ ] Expert subscription (Stripe Connect onboarding for experts)
+- [ ] Subscriber-only post visibility enforcement
+
+### Phase 3 — Credibility Engine
+- [ ] PortfolioCall creation (structured trade recommendation)
+- [ ] Call outcome tracking (manual close, P&L computation)
+- [ ] CredibilityScore computation job (BullMQ)
+- [ ] Expert leaderboard / discovery page
+- [ ] Per-expert track record page
+
+### Phase 4 — Financial Data Integration
+- [ ] Ticker entity with API sync (Polygon.io or Alpha Vantage)
+- [ ] Live price / change % on ticker chips
+- [ ] In-platform basic stock overview (price chart, key metrics)
+- [ ] Entry price auto-population on PortfolioCalls via market snapshot
+
+---
+
+## 6. API Conventions
+
+### Base URL
+```
+/api/v1/
+```
+
+### Response Envelope
+```json
+{
+  "data": { ... },
+  "meta": { "page": 1, "total": 100 },
+  "error": null
+}
+```
+
+### Error Shape
+```json
+{
+  "data": null,
+  "error": {
+    "code": "POST_LOCKED",
+    "message": "This post requires a subscription or unlock payment.",
+    "statusCode": 403
+  }
+}
+```
+
+### Pagination
+Cursor-based for feeds, offset-based for admin/analytics.
+```
+GET /api/v1/posts?cursor=<post_id>&limit=20
+```
+
+### Auth Headers
+```
+Authorization: Bearer <access_token>
+```
+Access tokens expire in 15 minutes. Refresh via `POST /api/v1/auth/refresh`.
+
+### Key Endpoints (Phase 1)
+
+```
+POST   /api/v1/auth/register
+POST   /api/v1/auth/login
+POST   /api/v1/auth/refresh
+GET    /api/v1/auth/me
+
+GET    /api/v1/users/:username
+PATCH  /api/v1/users/me
+
+GET    /api/v1/posts              # paginated feed
+POST   /api/v1/posts              # create post
+GET    /api/v1/posts/:id          # single post (enforces visibility)
+PATCH  /api/v1/posts/:id          # edit own post
+DELETE /api/v1/posts/:id          # delete own post
+```
+
+---
+
+## 7. Content Visibility Rules
+
+These are enforced server-side in the Post resolver — never trust the client.
+
+| Post visibility | Anonymous | Retail (free) | Follower | Subscriber | Author |
+|---|---|---|---|---|---|
+| `public` | ✅ full | ✅ full | ✅ full | ✅ full | ✅ full |
+| `preview` | preview only | preview only | preview only | ✅ full | ✅ full |
+| `preview` + unlock paid | — | ✅ full (if paid) | ✅ full (if paid) | ✅ full | ✅ full |
+| `subscribers_only` | ❌ | ❌ | ❌ | ✅ full | ✅ full |
+
+`body_locked` is **never sent in API response** unless the user has access. The client receives `locked: true` and `unlock_price` instead.
+
+---
+
+## 8. Code Style & Conventions
+
+### General
+- TypeScript strict mode everywhere. No `any`.
+- Zod schemas in `packages/shared` are the single source of truth for request/response shapes.
+- No logic in React components beyond UI concerns — data fetching via TanStack Query hooks, business logic in service layers (API) or custom hooks (web).
+
+### File Naming
+- React components: `PascalCase.tsx`
+- Hooks: `useXxx.ts`
+- API modules: `xxx.module.ts`, `xxx.controller.ts`, `xxx.service.ts`
+- DB migrations: timestamped, descriptive (`20240101_create_posts_table`)
+
+### Git Conventions
+- Branch: `feat/`, `fix/`, `chore/`, `docs/`
+- Commits: conventional commits (`feat: add post unlock flow`)
+- PRs require passing TypeScript + lint checks
+
+### Extension Boundaries (if using Flarum skeleton)
+All custom logic lives under `extensions/hamilton/` registered as Composer path repositories. Every extension adding a page includes a left-panel nav entry.
+
+---
+
+## 9. Security Checklist
+
+- [ ] Passwords hashed with bcrypt (cost factor 12)
+- [ ] JWT secrets rotated, stored in env only
+- [ ] Refresh tokens stored in HttpOnly cookies
+- [ ] Rate limiting on auth endpoints (Redis-backed)
+- [ ] All financial amounts handled in **integer cents**, never floats
+- [ ] Stripe webhooks verified via signature
+- [ ] `body_locked` stripped server-side before response if user lacks access
+- [ ] Input sanitization on all rich-text fields before storage
+- [ ] CORS restricted to known frontend origins in production
+
+---
+
+## 10. Environment Variables
+
+```env
+# API
+DATABASE_URL=postgresql://...
+REDIS_URL=redis://...
+JWT_ACCESS_SECRET=
+JWT_REFRESH_SECRET=
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=30d
+
+# Stripe
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_CONNECT_CLIENT_ID=
+
+# Storage
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=
+
+# Financial Data (Phase 4)
+POLYGON_API_KEY=
+```
+
+---
+
+_Last updated: 2026-03-29 — Phase 1 complete_
+## _Next task 30-Mar-2026: 
+Objective: Design new homepage (pre login) to become a market explore page purposes give users a good sense of value proposition and encourage registration / login.  Following front end design principle of modern trading platform and optimize for mobile browsing screen as well
+
+Task:
+
+1/ Redesign front end of homepage with following section and guideline. If any section we have not build detail function. Leave it as placeholder at the moment.
+
+- Top navigation bar with  basic menu and login - register option
+- Hero section with 3 boxes showcase top key  users can enjoy to join the platform. Currently offer 3
+    - Most credible experts:
+        - Position: outer left
+        - Info: top 3 experts with highest percentage of correct trading recommendation last 30 days. using data parsed from KOL-tracker database
+    - Top buying opportunities:
+        - List of assets with highest numbers of buy recommedation last 7D and percentage of price change since L7D
+    - Number of new recommendation made
+        - carrousel types of new recommendation made to trigger users to login and explore more eg: Expert A just recommend buy assets X (based on database of current calls)
+- Rearrange remaining info of homepage prelogin with current data but shorter and more call to action to login
+
+2/ Bring hero section to feedpage (post login) with option for users to click and explore detail longer list one login

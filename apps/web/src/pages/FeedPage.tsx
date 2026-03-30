@@ -8,6 +8,7 @@ import { Card } from '../components/ui/Card';
 import { useInfinitePosts } from '../hooks/usePosts';
 import { useAuthStore } from '../stores/authStore';
 import { KolLeaderboard } from '../components/kol/KolLeaderboard';
+import { HeroSection } from '../components/kol/HeroSection';
 
 function RightPanel() {
   const user = useAuthStore((s) => s.user);
@@ -87,6 +88,11 @@ export function FeedPage() {
 
   return (
     <AppLayout rightPanel={<RightPanel />}>
+      {/* Market Pulse Hero */}
+      <div className="mb-8">
+        <HeroSection isLoggedIn={true} />
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

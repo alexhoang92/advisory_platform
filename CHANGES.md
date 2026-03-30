@@ -2,6 +2,45 @@
 
 ---
 
+## 2026-03-30 — Homepage redesign + Market Pulse hero section (branch: KOL_scraper_clone)
+
+Redesigned the pre-login homepage into a market explore page and added a live
+data hero section ("Market Pulse") visible on both the landing page and the
+post-login feed.
+
+### Added
+
+**Backend (`apps/api/src/kol/`)**
+- `kol.service.ts` — `getTopOpportunities()`: queries `recommendations` + `price_snapshots`
+  for tickers with the most BUY calls in the last 7 days and their avg price change (T0 vs T7D)
+- `kol.service.ts` — `getRecentCalls(limit)`: fetches latest BUY/LONG recommendations
+  joined with KOL handle, conviction, and target price
+- `kol.controller.ts` — `GET /api/v1/kol/top-opportunities` and
+  `GET /api/v1/kol/recent-calls?limit=N` routes wired to the new service methods
+
+**Frontend (`apps/web/src/`)**
+- `components/kol/HeroSection.tsx` — new reusable 3-box hero component:
+  - **Most Credible Experts**: top 3 KOLs by win rate (T30D) with rank medals
+  - **Top Buying Opportunities**: buy-call count bar + avg 7D price change per ticker
+  - **Live Recommendations**: auto-cycling carousel (3 s) of latest buy calls with
+    conviction badges, target prices, time-ago, dot navigation, and scrolling ticker tape
+  - CTAs adapt to context: sign-up prompts on landing, "explore" links on feed
+- `tailwind.config.ts` — added `marquee` keyframe + animation for ticker tape scroll
+
+### Changed
+
+- `pages/LandingPage.tsx` — full redesign:
+  - Sticky nav with anchor links (How it works, For experts)
+  - Compact hero copy with "Live market data" live badge
+  - Market Pulse HeroSection as primary above-the-fold content
+  - Condensed 3-column value props (was 4-card grid)
+  - Expert monetization callout section with checklist
+  - Stronger single CTA footer
+- `pages/FeedPage.tsx` — HeroSection embedded at the top of the main feed column
+  (with `isLoggedIn=true`), CTAs point to feed exploration instead of registration
+
+---
+
 ## 2026-03-30 — Pipeline-only cleanup (branch: KOL_scraper_clone)
 
 Removed all code not required to run the KOL data pipeline or deliver data

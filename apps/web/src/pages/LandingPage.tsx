@@ -1,172 +1,180 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, Shield, BarChart2, Users, ArrowRight } from 'lucide-react';
+import { TrendingUp, Shield, BarChart2, ArrowRight, CheckCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { HeroSection } from '../components/kol/HeroSection';
 
-const features = [
+const VALUE_PROPS = [
   {
-    icon: <Shield size={20} className="text-[var(--color-accent)]" />,
-    title: 'Verified Credibility',
-    description:
-      'Every expert is independently scored on their track record. No hype, no unverified claims — just data.',
+    icon: <Shield size={16} className="text-[var(--color-accent)]" />,
+    title: 'Verified Track Records',
+    desc: 'Win rates and returns auto-computed from real published calls. No self-reported numbers.',
   },
   {
-    icon: <TrendingUp size={20} className="text-[var(--color-accent)]" />,
+    icon: <BarChart2 size={16} className="text-[var(--color-accent)]" />,
     title: 'Structured Trade Calls',
-    description:
-      'Experts publish entry, target, stop-loss, and conviction — giving you everything you need to evaluate a trade.',
+    desc: 'Entry, target, stop-loss, conviction — full context before you commit.',
   },
   {
-    icon: <BarChart2 size={20} className="text-[var(--color-accent)]" />,
-    title: 'Live Track Records',
-    description:
-      'Win rates, average returns, and call history are automatically computed and always up-to-date.',
-  },
-  {
-    icon: <Users size={20} className="text-[var(--color-accent)]" />,
-    title: 'Monetize Your Edge',
-    description:
-      'Experts earn directly through subscriptions, per-post unlocks, and tips — no platform intermediary cut.',
+    icon: <TrendingUp size={16} className="text-[var(--color-accent)]" />,
+    title: 'Expert Monetization',
+    desc: 'Experts earn via subscriptions, unlocks, and tips. Aligned incentives.',
   },
 ];
 
 export function LandingPage() {
   return (
     <div className="min-h-screen bg-[var(--color-bg-base)] flex flex-col">
-      {/* Nav */}
-      <header className="flex items-center justify-between px-8 py-5 border-b border-[var(--color-border)]">
-        <div className="flex items-center gap-2">
-          <TrendingUp size={22} className="text-[var(--color-accent)]" />
-          <span className="font-display font-bold text-xl text-[var(--color-text-primary)] tracking-tight">
+
+      {/* ── Nav ──────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-50 flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-bg-base)]/90 backdrop-blur-sm">
+        <Link to="/" className="flex items-center gap-2">
+          <TrendingUp size={20} className="text-[var(--color-accent)]" />
+          <span className="font-display font-bold text-lg text-[var(--color-text-primary)] tracking-tight">
             Hamilton
           </span>
-        </div>
-        <div className="flex items-center gap-3">
+        </Link>
+
+        <nav className="hidden sm:flex items-center gap-6">
+          <a href="#how-it-works" className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
+            How it works
+          </a>
+          <a href="#for-experts" className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
+            For experts
+          </a>
+        </nav>
+
+        <div className="flex items-center gap-2">
           <Link to="/login">
-            <Button variant="secondary" size="sm">
-              Sign in
-            </Button>
+            <Button variant="secondary" size="sm">Sign in</Button>
           </Link>
           <Link to="/register">
-            <Button variant="primary" size="sm">
-              Get started
-            </Button>
+            <Button variant="primary" size="sm">Get started</Button>
           </Link>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="flex-1 flex flex-col items-center justify-center px-6 py-24 text-center">
-        <div className="max-w-3xl mx-auto">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--color-border-accent)] bg-[var(--color-accent-muted)] mb-8">
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
-            <span className="text-xs font-medium text-[var(--color-accent)] font-mono uppercase tracking-wider">
-              Now in Early Access
-            </span>
-          </div>
-
-          <h1 className="font-display font-extrabold text-5xl sm:text-6xl text-[var(--color-text-primary)] leading-tight mb-6">
-            Where serious investors
-            <br />
-            <span className="text-[var(--color-accent)]">follow serious traders.</span>
-          </h1>
-
-          <p className="text-lg text-[var(--color-text-secondary)] max-w-xl mx-auto mb-10 leading-relaxed font-body">
-            Hamilton is the investment research marketplace with independently verified expert
-            credibility scores, structured trade calls, and direct monetization — no fluff.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/register">
-              <Button variant="primary" size="lg" className="gap-2">
-                Start for free <ArrowRight size={16} />
-              </Button>
-            </Link>
-            <Link to="/register?role=expert">
-              <Button variant="secondary" size="lg">
-                Publish as an expert
-              </Button>
-            </Link>
-          </div>
+      {/* ── Hero copy ─────────────────────────────────────────── */}
+      <section className="px-6 pt-14 pb-8 text-center max-w-3xl mx-auto w-full">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--color-border-accent)] bg-[var(--color-accent-muted)] mb-6">
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
+          <span className="text-xs font-medium text-[var(--color-accent)] font-mono uppercase tracking-wider">
+            Live market data
+          </span>
         </div>
+
+        <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[var(--color-text-primary)] leading-tight mb-4">
+          Follow traders with{' '}
+          <span className="text-[var(--color-accent)]">proven track records.</span>
+        </h1>
+
+        <p className="text-base text-[var(--color-text-secondary)] max-w-xl mx-auto mb-8 leading-relaxed">
+          Hamilton independently verifies expert credibility from real trade calls.
+          Discover who's actually right — and follow their next move.
+        </p>
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
+          <Link to="/register">
+            <Button variant="primary" size="lg" className="gap-2">
+              Start for free <ArrowRight size={15} />
+            </Button>
+          </Link>
+          <Link to="/register?role=expert">
+            <Button variant="secondary" size="lg">
+              Publish as an expert
+            </Button>
+          </Link>
+        </div>
+
+        <p className="text-xs text-[var(--color-text-tertiary)]">
+          No credit card required · Free to browse
+        </p>
       </section>
 
-      {/* Stats bar */}
-      <section className="border-y border-[var(--color-border)] bg-[var(--color-bg-surface)]">
-        <div className="max-w-4xl mx-auto px-6 py-6 grid grid-cols-3 gap-6 text-center">
-          {[
-            { value: '—', label: 'Verified Experts' },
-            { value: '—', label: 'Trade Calls Published' },
-            { value: '—', label: 'Avg Expert Win Rate' },
-          ].map((stat) => (
-            <div key={stat.label}>
-              <p className="font-mono text-2xl font-bold text-[var(--color-accent)]">{stat.value}</p>
-              <p className="text-xs text-[var(--color-text-tertiary)] mt-1 uppercase tracking-wide">{stat.label}</p>
-            </div>
-          ))}
-        </div>
+      {/* ── Market Pulse Hero Section ─────────────────────────── */}
+      <section className="px-6 pb-12 max-w-6xl mx-auto w-full">
+        <HeroSection isLoggedIn={false} />
       </section>
 
-      {/* Features */}
-      <section className="py-20 px-6">
+      {/* ── Value props (compact) ─────────────────────────────── */}
+      <section id="how-it-works" className="border-t border-[var(--color-border)] bg-[var(--color-bg-surface)] px-6 py-10">
         <div className="max-w-4xl mx-auto">
-          <h2 className="font-display font-bold text-3xl text-center text-[var(--color-text-primary)] mb-3">
-            Built for the serious market participant
+          <h2 className="font-display font-bold text-xl text-[var(--color-text-primary)] text-center mb-8">
+            Built for accountability
           </h2>
-          <p className="text-center text-[var(--color-text-secondary)] mb-12 max-w-lg mx-auto">
-            Everything on Hamilton is designed around accountability, transparency, and real edge.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {features.map((feature) => (
-              <div
-                key={feature.title}
-                className="p-5 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-surface)] hover:border-[var(--color-border-accent)] transition-colors duration-200"
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 rounded-lg bg-[var(--color-accent-muted)] border border-[var(--color-border-accent)]">
-                    {feature.icon}
-                  </div>
-                  <h3 className="font-display font-semibold text-base text-[var(--color-text-primary)]">
-                    {feature.title}
-                  </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {VALUE_PROPS.map((v) => (
+              <div key={v.title} className="flex gap-3">
+                <div className="p-2 rounded-lg bg-[var(--color-accent-muted)] border border-[var(--color-border-accent)] h-fit flex-shrink-0">
+                  {v.icon}
                 </div>
-                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
-                  {feature.description}
-                </p>
+                <div>
+                  <p className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">{v.title}</p>
+                  <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">{v.desc}</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-16 px-6 border-t border-[var(--color-border)]">
-        <div className="max-w-2xl mx-auto text-center">
-          <h2 className="font-display font-bold text-3xl text-[var(--color-text-primary)] mb-4">
-            Ready to trade with conviction?
-          </h2>
-          <p className="text-[var(--color-text-secondary)] mb-8">
-            Join Hamilton and access independently verified expert research.
-          </p>
-          <Link to="/register">
-            <Button variant="primary" size="lg">
-              Create your account
+      {/* ── For experts callout ───────────────────────────────── */}
+      <section id="for-experts" className="px-6 py-10 border-t border-[var(--color-border)]">
+        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-6">
+          <div className="flex-1">
+            <p className="text-xs font-mono text-[var(--color-accent)] uppercase tracking-widest mb-2">For experts</p>
+            <h3 className="font-display font-bold text-xl text-[var(--color-text-primary)] mb-2">
+              Monetize your edge directly
+            </h3>
+            <div className="flex flex-col gap-1.5">
+              {['Recurring subscriber revenue', 'Per-post unlock pricing', 'Tips from your audience'].map((item) => (
+                <div key={item} className="flex items-center gap-2">
+                  <CheckCircle size={13} className="text-[var(--color-accent)] flex-shrink-0" />
+                  <span className="text-sm text-[var(--color-text-secondary)]">{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <Link to="/register?role=expert">
+            <Button variant="primary" size="md" className="gap-2 whitespace-nowrap">
+              Apply as expert <ArrowRight size={14} />
             </Button>
           </Link>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="px-8 py-6 border-t border-[var(--color-border)] flex items-center justify-between">
+      {/* ── Final CTA ─────────────────────────────────────────── */}
+      <section className="px-6 py-12 border-t border-[var(--color-border)] bg-[var(--color-bg-surface)]">
+        <div className="max-w-xl mx-auto text-center">
+          <h2 className="font-display font-bold text-2xl text-[var(--color-text-primary)] mb-3">
+            Ready to trade smarter?
+          </h2>
+          <p className="text-sm text-[var(--color-text-secondary)] mb-6">
+            Join Hamilton and access the only marketplace with independently verified expert credibility scores.
+          </p>
+          <Link to="/register">
+            <Button variant="primary" size="lg">Create free account</Button>
+          </Link>
+        </div>
+      </section>
+
+      {/* ── Footer ────────────────────────────────────────────── */}
+      <footer className="px-6 py-5 border-t border-[var(--color-border)] flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <TrendingUp size={16} className="text-[var(--color-accent)]" />
+          <TrendingUp size={14} className="text-[var(--color-accent)]" />
           <span className="font-display font-bold text-sm text-[var(--color-text-tertiary)]">Hamilton</span>
         </div>
         <p className="text-xs text-[var(--color-text-tertiary)]">
           © {new Date().getFullYear()} Hamilton. All rights reserved.
         </p>
+        <div className="flex items-center gap-4">
+          <Link to="/login" className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors">
+            Sign in
+          </Link>
+          <Link to="/register" className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors">
+            Register
+          </Link>
+        </div>
       </footer>
     </div>
   );
