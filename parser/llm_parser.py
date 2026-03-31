@@ -73,7 +73,8 @@ Respond with this exact JSON structure:
   "conviction": "HIGH or MEDIUM or LOW or null",
   "target_price": number or null,
   "timeframe": "intraday or swing or long-term or unspecified or null",
-  "signal_text": "the exact phrase that indicated the recommendation, or null"
+  "signal_text": "the exact phrase that indicated the recommendation, or null",
+  "confidence": 0.0 to 1.0
 }}
 
 Rules:
@@ -91,7 +92,14 @@ Rules:
   * SHORT: short, bearish, put, remains short
 - Set has_recommendation FALSE for: pure news, earnings reports with no directional call, general market commentary without a specific ticker call, price observations with no direction
 - If a tweet mentions multiple tickers with the same direction, pick the most prominently featured one
-- IMPORTANT: ticker must be explicitly mentioned in $TICKER format in the tweet (dollar-sign prefix). Do NOT infer a ticker from a company name alone without a $SYMBOL present."""
+- IMPORTANT: ticker must be explicitly mentioned in $TICKER format in the tweet (dollar-sign prefix). Do NOT infer a ticker from a company name alone without a $SYMBOL present.
+- confidence field: your certainty (0.0-1.0) that this text contains a genuine, forward-looking, actionable stock recommendation:
+  * 1.0 — Explicit "BUY X target $Y" or "SHORT X, stop at $Z" style call
+  * 0.8 — Clear directional bias with ticker ("$AAPL looks strong here, adding")
+  * 0.6 — Directional but ambiguous ("watching NVDA for a breakout")
+  * 0.4 — Ticker mentioned but no clear direction
+  * 0.2 — Ticker mentioned only in passing or historical context
+  * 0.0 — No actionable content"""
 
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",
@@ -154,17 +162,22 @@ def run_parser(batch_size: int = 50):
                 if existing:
                     continue
 
+                # confidence defaults to 0.5 if LLM omits it
+                raw_confidence = result.get("confidence")
+                confidence_score = float(raw_confidence) if raw_confidence is not None else 0.5
+
                 rec = Recommendation(
-                    tweet_id    = tweet.id,
-                    kol_id      = tweet.kol_id,
-                    ticker      = result["ticker"].upper(),
-                    direction   = result.get("direction", "UNKNOWN"),
-                    conviction  = result.get("conviction", "MEDIUM"),
-                    target_price = result.get("target_price"),
-                    timeframe   = result.get("timeframe", "unspecified"),
-                    signal_text = result.get("signal_text"),
-                    parse_method = "llm",
-                    posted_at   = tweet.posted_at,
+                    tweet_id         = tweet.id,
+                    kol_id           = tweet.kol_id,
+                    ticker           = result["ticker"].upper(),
+                    direction        = result.get("direction", "UNKNOWN"),
+                    conviction       = result.get("conviction", "MEDIUM"),
+                    target_price     = result.get("target_price"),
+                    timeframe        = result.get("timeframe", "unspecified"),
+                    signal_text      = result.get("signal_text"),
+                    parse_method     = "llm",
+                    posted_at        = tweet.posted_at,
+                    confidence_score = confidence_score,
                 )
                 session.add(rec)
                 recs_found += 1

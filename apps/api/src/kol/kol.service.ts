@@ -24,6 +24,19 @@ export interface TopOpportunity {
   avg_change_7d: number | null;
 }
 
+export interface SocialCallForScoring {
+  id: number;
+  kol_id: number;
+  ticker: string;
+  direction: string;
+  posted_at: string | null;
+  price_t0: number | null;
+  price_t30: number | null;
+  price_t90: number | null;
+  confidence_score: number | null;
+  excluded_reason: string | null;
+}
+
 export interface RecentCall {
   id: number;
   kol_handle: string;
@@ -382,6 +395,87 @@ export class KolService implements OnModuleInit, OnModuleDestroy {
     } catch (err) {
       console.error('[KolService] getAllKols failed:', err);
       return [];
+    }
+  }
+
+  /**
+   * Returns all non-excluded recommendations for a KOL handle with T0 / T30D / T90D
+   * price snapshots. Used exclusively by CredibilityService for scoring.
+   */
+  async getSocialCallsForScoring(handle: string): Promise<SocialCallForScoring[]> {
+    if (!this.pool) return [];
+    try {
+      const { rows } = await this.pool.query<{
+        id: number;
+        kol_id: number;
+        ticker: string;
+        direction: string;
+        posted_at: Date | null;
+        price_t0: number | null;
+        price_t30: number | null;
+        price_t90: number | null;
+        confidence_score: number | null;
+        excluded_reason: string | null;
+      }>(
+        `SELECT
+           r.id,
+           r.kol_id,
+           r.ticker,
+           r.direction,
+           r.posted_at,
+           ps0.price  AS price_t0,
+           ps30.price AS price_t30,
+           ps90.price AS price_t90,
+           r.confidence_score,
+           r.excluded_reason
+         FROM recommendations r
+         JOIN kols k ON k.id = r.kol_id
+         LEFT JOIN price_snapshots ps0
+           ON ps0.recommendation_id = r.id AND ps0.snapshot_type = 'T0'
+         LEFT JOIN price_snapshots ps30
+           ON ps30.recommendation_id = r.id AND ps30.snapshot_type = 'T30D'
+         LEFT JOIN price_snapshots ps90
+           ON ps90.recommendation_id = r.id AND ps90.snapshot_type = 'T90D'
+         WHERE LOWER(k.handle) = LOWER($1)
+           AND k.is_active = true
+           AND r.excluded_reason IS NULL`,
+        [handle],
+      );
+
+      return rows.map((r) => ({
+        id: r.id,
+        kol_id: r.kol_id,
+        ticker: r.ticker,
+        direction: r.direction,
+        posted_at: r.posted_at instanceof Date ? r.posted_at.toISOString() : (r.posted_at ? String(r.posted_at) : null),
+        price_t0: r.price_t0,
+        price_t30: r.price_t30,
+        price_t90: r.price_t90,
+        confidence_score: r.confidence_score,
+        excluded_reason: r.excluded_reason,
+      }));
+    } catch (err) {
+      console.error('[KolService] getSocialCallsForScoring failed:', err);
+      return [];
+    }
+  }
+
+  /** Flags a social recommendation as superseded by a platform call. */
+  async markRecommendationSuperseded(
+    recommendationId: number,
+    platformCallId: string,
+  ): Promise<void> {
+    if (!this.pool) return;
+    try {
+      await this.pool.query(
+        `UPDATE recommendations
+         SET superseded_by_platform_call_id = $1,
+             excluded_reason = 'superseded'
+         WHERE id = $2 AND excluded_reason IS NULL`,
+        [platformCallId, recommendationId],
+      );
+    } catch (err) {
+      console.error('[KolService] markRecommendationSuperseded failed:', err);
     }
   }
 

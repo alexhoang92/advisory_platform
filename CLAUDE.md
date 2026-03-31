@@ -433,201 +433,577 @@ POLYGON_API_KEY=
 ---
 
 _Last updated: 2026-03-31 — Phase 1 complete + UX & data fixes_
-## _Next task 30-Mar-2026: 
-Objective: Design new homepage (pre login) to become a market explore page purposes give users a good sense of value proposition and encourage registration / login.  Following front end design principle of modern trading platform and optimize for mobile browsing screen as well
 
-Task:
 
-1/ Redesign front end of homepage with following section and guideline. If any section we have not build detail function. Leave it as placeholder at the moment.
-
-- Top navigation bar with  basic menu and login - register option
-- Hero section with 3 boxes showcase top key  users can enjoy to join the platform. Currently offer 3
-    - Most credible experts:
-        - Position: outer left
-        - Info: top 3 experts with highest percentage of correct trading recommendation last 30 days. using data parsed from KOL-tracker database
-    - Top buying opportunities:
-        - List of assets with highest numbers of buy recommedation last 7D and percentage of price change since L7D
-    - Number of new recommendation made
-        - carrousel types of new recommendation made to trigger users to login and explore more eg: Expert A just recommend buy assets X (based on database of current calls)
-- Rearrange remaining info of homepage prelogin with current data but shorter and more call to action to login
-
-2/ Bring hero section to feedpage (post login) with option for users to click and explore detail longer list one login
 
 ---
 
-## _Changes 31-Mar-2026:
+# Phase 3 — Credibility Engine: Architecture & Agent Task Specs
 
-### 1. Signup flow — removed display name field
-- Registration now requires only email, username, password, and role.
-- `display_name` defaults to `username` on user creation (backend).
-- Removed from `RegisterSchema` (shared), `RegisterDto` (API), and `RegisterPage` (frontend).
-
-### 2. Account Settings page
-- **Entry point:** clicking the user card (bottom-left sidebar) navigates to `/settings`.
-- **Bio:** editable textarea, hard-capped at 200 characters with live counter.
-- **Password change:** current password verification → new password (min 8 chars) → confirm.
-- New `PATCH /api/v1/users/me/password` endpoint added (bcrypt verification + re-hash).
-- New `SettingsPage` component at `apps/web/src/pages/SettingsPage.tsx`.
-
-### 3. KOL hero section & leaderboard — live Neon queries
-- Leaderboard now computes win rates **live** from `recommendations + price_snapshots` tables,
-  removing the dependency on the pre-computed `kol_scores` table. Data shows without a pipeline re-run.
-- Top Opportunities time window extended from 7 days → 90 days.
-- Recent Calls: `posted_at` handled as nullable; `timeAgo()` shows `"recently"` for null/invalid timestamps.
-
----
-# New task 31-Mar-2026 round 2
-
-Objective
-
-# An “Expert profile” pages that user for both normal users and experts 
-
-# A follow system that allow users to follow each others, follow experts view post of the account that they followed in feed followed filter section
-
-Detail tasks
-
-# “Expert Profile” Page
-
-## 🎯 Goal
-
-Display detailed information about a financial expert and their activity.
-
-- --
-
-## 📦 Available Data
-
-- `name`
-- `description` (trading style)
-- `recent_recommendations` from social tracking
-- `recent_posts` in Hammilton platform
-- Profile type (claimed, un_claimed)
-
-## ❌ Exclude (Do NOT include yet)
-
-- Success rate
-- Average return
-- Rating distribution
-- Rankings
-- Sector / GEO breakdown
-- Any percentage-based metrics
-- --
-
-## 🧱 UI Structure
-
-### Header
-
-- Back button
-- Expert name
-- --
-
-### Profile Section
-
-- Avatar (placeholder)
-- Name (prominent)
-- Description (trading style summary)
-- --
-
-### Section: “Recent Recommendations”
-
-List of recent asset calls.
-
-Each item includes:
-
-- Asset name / ticker
-- Recommendation type (Buy / Sell / Hold if available)
-- Optional timestamp (if available)
-- source tag (social or “exclusive on Hamilton”)
-
-### Optional Section: “About Strategy”
-
-- Expanded paragraph using description
-- --
-
-## 📱 Mobile Optimization
-
-- Single column layout
-- Large tap areas
-- Smooth vertical scrolling
-- --
-
-# Follow system
-
-- follow button on each profile pages and post detail pages show when user click to expert profiles or post detail
-- Followed posts integrated into feed with current built filters
-- Unfollow click and confirm unfollow box (only for unfollow use case)
-
-# Expected Output
-
-- Clean, production-ready UI
-- Scalable architecture for future data expansion
+> Added: 2026-03-31
+> Status: Planned — do not begin any session until the previous session is marked complete.
+> Each session is a self-contained Claude Code task. Read the full spec for a session before writing any code.
 
 ---
 
-## _Changes 31-Mar-2026 round 2:
+## Architecture Overview
 
-### 1. Follow system — backend + frontend
-- `POST /api/v1/users/:username/follow` — follow a user (auth required, no-op if already following)
-- `DELETE /api/v1/users/:username/follow` — unfollow a user (auth required)
-- `GET /api/v1/users/:username` now uses OptionalJwtGuard so it returns `is_following: true/false` for authenticated callers
-- `findByUsername` returns `follower_count`, `following_count`, `is_following`, and linked `kol_profile` in the response
-- New `useFollow(username)` hook: optimistic cache updates for follow/unfollow mutations
-- Unfollow requires confirmation via `ConfirmModal` component
+### Two Data Sources, Two Tracks
 
-### 2. Enhanced ProfilePage
-- Shows **follower / following counts** in the profile header
-- **Follow / Unfollow button** for non-own profiles (redirects to login if unauthenticated)
-- `Posts` tab: loads actual posts by that author via `GET /posts?author=:username`
-- `Recommendations` tab (experts with linked KOL profile): fetches live social recommendations from KOL-tracker DB via `GET /kol-profiles/:handle/recommendations`
-- **Verified KOL** badge shown when the user has claimed a KOL profile
-- Twitter/X handle link shown for claimed KOL profiles
-- Back button added for easy navigation
+Hamilton's credibility engine draws from two independent recommendation sources and must never blend their scores into a single number.
 
-### 3. Follow button on PostDetailPage
-- Follow / Unfollow button shown beside the author name on post detail pages
-- Fetches author profile to get live `is_following` state
-- Instant optimistic cache update — no full page reload needed
+**Platform Track** — Recommendations the expert deliberately publishes as a `PortfolioCall` on Hamilton. High-confidence signal. Expert owns and stands behind these calls.
 
-### 4. Posts by author filter
-- `GET /api/v1/posts?author=:username` now returns posts filtered to a specific user
-- Works independently of feed filter (latest/followed/trending)
+**Public Statement Evaluation** — Recommendations parsed from the expert's public social posts (Twitter/X) by the KOL scraper pipeline. Useful signal, but subject to LLM misparse and informal phrasing. Scored separately. Never described to users as "unverified" — use the label "Public Statement Evaluation" consistently across UI and API.
 
-### 5. KOL recommendations per profile
-- `GET /api/v1/kol-profiles/:handle/recommendations` — new endpoint returning recent social calls for a specific KOL handle
-- Backed by `KolService.getRecommendationsByHandle()` querying the KOL-tracker Neon DB
+### Four Display States
 
-### 6. Shared types
-- `User` extended with `follower_count?`, `following_count?`, `is_following?`, `kol_profile?`
-- New `KolProfileSummary` interface added to `@hamilton/shared`
+At render time, each expert profile is in exactly one of four states. The state is computed by `CredibilityService` and stored in `credibility_scores.display_state`. Frontend must branch on this field — never derive state client-side.
+```
+State: NO_DATA
+  Condition: platform_call_count < 10 AND social_call_count < 20
+  UI: Show "Building track record..." message. No score dials. No coverage table.
 
-### 7. New UI component
-- `ConfirmModal` — reusable modal dialog used for the unfollow confirmation flow
+State: PUBLIC_ONLY
+  Condition: platform_call_count < 10 AND social_call_count >= 20
+  UI: Show Public Statement Evaluation score as the primary prominent score.
+      Show note: "Based on {N} public statements tracked. Platform Credibility
+      score unlocks after 10 published calls on Hamilton."
+      Show public stock coverage table.
+      No platform score section rendered at all.
+
+State: PLATFORM_PRIMARY
+  Condition: platform_call_count >= 10
+  UI: Show Platform Credibility score as the primary prominent score.
+      Show Public Statement Evaluation as a secondary collapsible section below,
+      only if social_call_count >= 20. If social data exists but < 20 calls,
+      omit the public section entirely.
+      Show platform stock coverage table by default.
+      Source toggle (Platform / Public Statements) on coverage table if public
+      section is also shown.
+
+State: PLATFORM_ONLY
+  Condition: platform_call_count >= 10 AND no linked KOL handle
+  UI: Same as PLATFORM_PRIMARY but public section is never rendered.
+      No source toggle on coverage table.
+```
+
+### Conflict Resolution
+
+When an expert has both a `PortfolioCall` and a social recommendation on the same ticker within a ±7-day window, the platform call takes precedence:
+
+1. The social recommendation is flagged `excluded_reason = 'superseded'`.
+2. It is excluded from Public Statement Evaluation scoring.
+3. It does not appear in the public coverage table.
+4. No user-facing explanation is shown — the exclusion is silent.
+
+If the directions conflict (e.g. platform says LONG, social scrape says SELL on the same asset in the same week), the same rule applies: platform call wins, social call flagged superseded.
+
+Social calls outside the ±7-day conflict window are scored independently in the public track regardless of any platform calls on the same ticker at other times.
+
+### Scoring Formula
+
+Applied identically to both platform and public tracks. Each track is scored independently.
+
+**Per-call success threshold:**
+- LONG call success: `price_at_window > entry_price * 1.02`
+- SHORT call success: `price_at_window < entry_price * 0.98`
+- Calls under 30 days old: excluded from 30d window score, excluded from 90d window score
+- Calls between 30–89 days old: included in 30d score only
+- Calls 90+ days old: included in both 30d and 90d scores
+
+**Composite score (0–100 integer):**
+```
+win_rate_score  = win_rate_pct * 0.40
+return_score    = min(avg_return_pct / 50.0, 1.0) * 30    # caps contribution at 50% avg return
+volume_score    = min(log10(max(call_count, 1)) / log10(100), 1.0) * 15  # log scale, 10–100 calls
+recency_score   = (calls_in_last_90d / total_calls) * 15
+composite       = round(win_rate_score + return_score + volume_score + recency_score)
+```
+
+**Minimum thresholds before scoring:**
+- Platform track: requires `platform_call_count >= 10`
+- Public track: requires `social_call_count >= 20`
+- Below threshold: score fields are `null`, not zero
+
+**Rating distribution (buy/hold/sell %):**
+- Computed from all non-excluded calls regardless of outcome
+- Stored as JSON: `{ buy_pct, hold_pct, sell_pct, total_count }`
+- Computed separately for platform and public tracks
+
+### BullMQ Job
+
+Job name: `credibility-recompute`
+Queue name: `credibility`
+
+Triggers:
+- A `PortfolioCall` is created or its status changes to `closed` or `stopped_out`
+- Nightly batch at 02:00 local time for all experts with a linked KOL handle (social scores update as new price snapshots arrive)
+- On-demand via `CredibilityService.triggerRecompute(expertUserId)`
+
+Job payload: `{ expertUserId: string }`
+
+Job sequence:
+1. Fetch all `PortfolioCalls` for expert → compute platform track (30d and 90d)
+2. If expert has linked KOL handle → fetch social recommendations via `KolService` → apply conflict resolution → compute public track (30d and 90d)
+3. Determine `display_state` from counts
+4. Write result to `credibility_scores` (upsert on `expert_user_id`)
+5. Delete Redis cache key `credibility:{expertUserId}`
 
 ---
 
-## _Changes 31-Mar-2026 round 3:
+## Session A — Schema Migrations
 
-### 1. Leaderboard ranking — corrected logic
-- **Minimum 20 calls** required to appear (`HAVING COUNT(r.id) >= 20`); KOLs below threshold excluded entirely
-- **Sorted by `win_rate DESC`** (percentage of correct calls), `correct_calls` as tiebreaker — was previously sorted by total call count
-- Removed JS-side qualified/unqualified split; now enforced entirely in SQL
-- `qualified` field always `true` for returned entries (filter already applied)
+**Scope:** Database schema only. No service logic. No UI. Migrations must be non-destructive and backwards-compatible.
 
-### 2. KOL data pipeline fixes
-- Leaderboard was empty — `JOIN recommendations` inner-joined out all KOLs with 0 calls; changed to `LEFT JOIN` with `HAVING` for the 20-call cutoff
-- Top opportunities price-change formula was inverted (`(ps0−ps7)/ps7`) → corrected to `(ps7−ps0)/ps0`
-- `KolLeaderboard` and hero TopExpertsBox show "Tracking…" instead of "0%" when no calls recorded yet
-- Created `scripts/seed_kol_recommendations.py` — dev seed script injecting 278 realistic recommendations + price snapshots for 10 KOLs with realistic win-rate biases
+### A1 — Prisma migration: `credibility_scores` table
 
-### 3. Hero section — all 3 boxes carousel-ified
-- Most Credible Experts and Top Buying Opportunities now match the Live Recommendations carousel pattern
-- Each box: one card at a time, auto-cycles every 3–3.5 s, clickable dot indicators, scrolling ticker tape
-- Most Credible Experts card: rank (colour-coded gold/silver/bronze), name, call count, large win rate %, avg return sentence
-- Top Buying Opportunities card: ticker + BUY badge, 7d price change %, scaled buy-volume progress bar
+Create new table via `npx prisma migrate dev --name add_credibility_scores`.
+```prisma
+model CredibilityScore {
+  id                    String   @id @default(cuid())
+  expertUserId          String   @unique
+  expert                User     @relation(fields: [expertUserId], references: [id], onDelete: Cascade)
 
-### 4. Feed page UI overhaul
-- Removed user profile card, "New Post" card, and "About Hamilton" card from right panel
-- KolLeaderboard remains in right panel
-- **Floating FAB**: green circular button fixed `bottom-6 right-6`, pen icon, links to `/posts/new`
-- **Hero section at full width**: moved to new `AppLayout.topSlot` — renders across the full center column width above the `max-w-2xl` feed container; eliminates text wrapping in market pulse cards
-- `AppLayout` extended with optional `topSlot?: React.ReactNode` prop
-- Hero card header fonts reduced one step (`text-sm`→`text-xs`, `text-[10px]`→`text-[9px]`); LIVE badge also shrunk to prevent wrapping
+  displayState          String   // 'NO_DATA' | 'PUBLIC_ONLY' | 'PLATFORM_PRIMARY' | 'PLATFORM_ONLY'
+
+  // Platform track — 30-day window
+  platformWinRate30d    Float?
+  platformAvgReturn30d  Float?
+  platformCallCount     Int      @default(0)
+  platformScore30d      Int?     // 0–100, null if below threshold
+  platformCallsLast90d  Int      @default(0)
+
+  // Platform track — 90-day window
+  platformWinRate90d    Float?
+  platformAvgReturn90d  Float?
+  platformScore90d      Int?     // 0–100, null if below threshold
+
+  // Platform rating distribution
+  platformRatingDist    Json?    // { buy_pct, hold_pct, sell_pct, total_count }
+
+  // Public track — 30-day window
+  socialWinRate30d      Float?
+  socialAvgReturn30d    Float?
+  socialCallCount       Int      @default(0)
+  socialScore30d        Int?     // 0–100, null if below threshold
+  socialCallsLast90d    Int      @default(0)
+
+  // Public track — 90-day window
+  socialWinRate90d      Float?
+  socialAvgReturn90d    Float?
+  socialScore90d        Int?     // 0–100, null if below threshold
+
+  // Public rating distribution
+  socialRatingDist      Json?    // { buy_pct, hold_pct, sell_pct, total_count }
+
+  computedAt            DateTime @default(now())
+  windowNote            String?  // e.g. "Insufficient data for 90-day window"
+
+  @@map("credibility_scores")
+}
+```
+
+Add the reverse relation on `User`:
+```prisma
+credibilityScore  CredibilityScore?
+```
+
+### A2 — Prisma migration: extend `PortfolioCall`
+
+Add to existing `PortfolioCall` model via a second migration `add_portfolio_call_outcome_fields`:
+```prisma
+success30d    Boolean?   // null = not yet measurable
+success90d    Boolean?
+measuredAt    DateTime?  // when outcome was last computed
+```
+
+Do not modify any existing fields on `PortfolioCall`.
+
+### A3 — Python SQLAlchemy: extend `recommendations` table
+
+In `db/models.py`, add three nullable columns to the `Recommendation` model:
+```python
+confidence_score = Column(Float, nullable=True)
+# LLM parse confidence 0.0–1.0. Populated by llm_parser.py.
+# Recommendations with confidence_score < 0.7 are excluded from scoring.
+
+superseded_by_platform_call_id = Column(String, nullable=True)
+# Hamilton PortfolioCall.id that overrides this social recommendation.
+# Set during conflict resolution in CredibilityService.
+
+excluded_reason = Column(String, nullable=True)
+# null | 'low_confidence' | 'superseded' | 'duplicate'
+# Excluded recommendations are stored but never scored.
+```
+
+Create the Alembic migration. Do not use `--autogenerate` — write the migration explicitly:
+```python
+def upgrade():
+    op.add_column('recommendations', sa.Column('confidence_score', sa.Float(), nullable=True))
+    op.add_column('recommendations', sa.Column('superseded_by_platform_call_id', sa.String(), nullable=True))
+    op.add_column('recommendations', sa.Column('excluded_reason', sa.String(), nullable=True))
+
+def downgrade():
+    op.drop_column('recommendations', 'excluded_reason')
+    op.drop_column('recommendations', 'superseded_by_platform_call_id')
+    op.drop_column('recommendations', 'confidence_score')
+```
+
+### A4 — Shared types
+
+In `packages/shared/src/types/index.ts`, add:
+```typescript
+export type CredibilityDisplayState =
+  | 'NO_DATA'
+  | 'PUBLIC_ONLY'
+  | 'PLATFORM_PRIMARY'
+  | 'PLATFORM_ONLY';
+
+export interface RatingDistribution {
+  buy_pct: number;
+  hold_pct: number;
+  sell_pct: number;
+  total_count: number;
+}
+
+export interface CredibilityTrack {
+  score_30d: number | null;
+  score_90d: number | null;
+  win_rate_30d: number | null;
+  win_rate_90d: number | null;
+  avg_return_30d: number | null;
+  avg_return_90d: number | null;
+  call_count: number;
+  rating_distribution: RatingDistribution | null;
+}
+
+export interface ExpertCredibility {
+  display_state: CredibilityDisplayState;
+  platform: CredibilityTrack | null;
+  public_statements: CredibilityTrack | null;
+  computed_at: string;
+  public_note: string | null;
+  // public_note is set when display_state = 'PUBLIC_ONLY':
+  // "Based on {N} public statements tracked. Platform Credibility score
+  //  unlocks after 10 published calls on Hamilton."
+}
+```
+
+Extend the existing `User` type:
+```typescript
+credibility?: ExpertCredibility;
+```
+
+### A — Verification checklist before marking complete
+- [ ] `npx prisma migrate dev` runs without error
+- [ ] `npx prisma generate` produces updated client
+- [ ] `CredibilityScore` model is queryable via Prisma client in a test script
+- [ ] Alembic migration applies cleanly against Neon DB
+- [ ] `packages/shared` compiles with `npx tsc --noEmit`
+
+---
+
+## Session B — Credibility Scoring Engine (NestJS)
+
+**Prerequisite:** Session A complete and verified.
+**Scope:** NestJS service, BullMQ job, and updated API endpoint. No frontend changes.
+
+### B1 — Module scaffold
+
+Create `apps/api/src/credibility/` with:
+- `credibility.module.ts`
+- `credibility.service.ts`
+- `credibility.controller.ts` (one endpoint only — see B4)
+
+Register `CredibilityModule` in `AppModule`. Import `KolModule` so `KolService` is available.
+
+### B2 — `CredibilityService.computeForExpert(expertUserId: string)`
+
+This is the core method. Structure:
+```
+1. Fetch expert user record. Confirm role = 'expert'. If not, throw BadRequestException.
+
+2. Fetch platform track data:
+   - Query all PortfolioCalls for this expertUserId
+   - For 30d: filter calls where opened_at <= now() - 30 days
+     Mark success30d = (direction=long AND outcome_return > 2%) OR (direction=short AND outcome_return < -2%)
+     Compute: platform_call_count, win_rate_30d, avg_return_30d, calls_last_90d
+     Apply scoring formula → platform_score_30d
+   - For 90d: same logic using 90-day window
+   - Compute rating distribution from all platform calls regardless of age
+   - Write success30d / success90d / measuredAt back to each PortfolioCall record
+
+3. Fetch public track data (only if expert has kol_profile with a handle):
+   - Call KolService.getRecommendationsByHandle(handle) — returns raw rows from Neon DB
+   - Filter out rows where excluded_reason IS NOT NULL
+   - Filter out rows where confidence_score IS NOT NULL AND confidence_score < 0.7
+   - Apply conflict resolution:
+       For each remaining social recommendation:
+         Query PortfolioCalls for same ticker, opened_at within ±7 days
+         If match found: set superseded_by_platform_call_id, excluded_reason = 'superseded', skip
+   - On remaining non-excluded rows: compute social track using same formula as platform
+   - Compute social rating distribution
+
+4. Determine display_state using the four-state rules from Architecture Overview above.
+
+5. Build public_note string if display_state = 'PUBLIC_ONLY'.
+
+6. Upsert credibility_scores record for this expert.
+
+7. Delete Redis key `credibility:{expertUserId}`.
+
+8. Return the upserted record.
+```
+
+All financial arithmetic uses integers where possible. `outcome_return` is stored as a percentage float (e.g. `4.5` = 4.5%). Do not convert to cents.
+
+### B3 — `CredibilityService.getForExpert(expertUserId: string): Promise<ExpertCredibility>`
+```
+1. Check Redis for key `credibility:{expertUserId}`. If hit, parse and return.
+2. If miss: read from credibility_scores table. If no row exists, return display_state = 'NO_DATA' with all nulls.
+3. Map DB row → ExpertCredibility shape (shared type).
+4. Write to Redis with TTL 3600 (1 hour).
+5. Return.
+```
+
+### B4 — Controller endpoint
+```
+GET /api/v1/users/:username/credibility
+```
+
+- Public endpoint (no auth required)
+- Resolves username → userId → calls `getForExpert`
+- Returns `{ data: ExpertCredibility }`
+- If user is not role `expert`, return `{ data: null }`
+
+### B5 — BullMQ job
+
+Install `@nestjs/bull` and `bull` if not already present. Create queue `credibility`.
+```typescript
+// credibility.processor.ts
+@Process('credibility-recompute')
+async handleRecompute(job: Job<{ expertUserId: string }>) {
+  await this.credibilityService.computeForExpert(job.data.expertUserId);
+}
+```
+
+Trigger points — add to existing services, do not restructure them:
+- In `PostsService`: after a `PortfolioCall` is created, enqueue job
+- In `PostsService`: after a `PortfolioCall` status is updated to `closed` or `stopped_out`, enqueue job
+- In `CredibilityService`: expose `triggerRecompute(expertUserId)` as a public method for the nightly scheduler
+
+Nightly batch: add a `@Cron('0 2 * * *')` method in `CredibilityService` that queries all users with `role = 'expert'` and a linked `kol_profile`, then enqueues a job for each. Use `CronExpression.EVERY_DAY_AT_2AM` from `@nestjs/schedule`.
+
+### B6 — Update `GET /api/v1/users/:username`
+
+In `UsersService.findByUsername()`, after fetching the user record, call `CredibilityService.getForExpert(userId)` and attach the result as `credibility` on the response. This must use the cached `getForExpert` path — never run `computeForExpert` inline on a profile request.
+
+### B — Verification checklist before marking complete
+- [ ] `POST /api/v1/credibility/recompute/:username` (temp dev endpoint) triggers compute and returns updated `ExpertCredibility`
+- [ ] `GET /api/v1/users/:username` includes `credibility` field in response
+- [ ] `GET /api/v1/users/:username/credibility` returns correct `display_state` for an expert with 0 calls (`NO_DATA`), for a seeded KOL with 20+ social calls (`PUBLIC_ONLY`), and for any expert with 10+ platform calls (`PLATFORM_PRIMARY` or `PLATFORM_ONLY`)
+- [ ] Redis cache hit confirmed on second request
+- [ ] BullMQ job visible in Bull dashboard or logs on PortfolioCall creation
+
+---
+
+## Session C — KOL Parser: Confidence Scoring
+
+**Prerequisite:** Session A complete. Session B does not need to be complete.
+**Scope:** Python KOL scraper only. No NestJS or frontend changes.
+
+### C1 — Add confidence scoring to `llm_parser.py`
+
+The LLM prompt currently extracts recommendation fields. Extend the prompt to also return a `confidence` field (0.0–1.0) representing how certain the model is that the tweet contains a genuine, actionable stock recommendation.
+
+Update the prompt instruction to include:
+```
+Also return a field "confidence" between 0.0 and 1.0 representing your certainty
+that this text contains a genuine, forward-looking, actionable stock recommendation
+(not a vague mention, historical reference, question, or off-topic statement).
+Use these guidelines:
+  1.0 — Explicit "BUY X target $Y" or "SHORT X, stop at $Z" style call
+  0.8 — Clear directional bias with ticker ("$AAPL looks strong here, adding")
+  0.6 — Directional but ambiguous ("watching NVDA for a breakout")
+  0.4 — Ticker mentioned but no clear direction
+  0.2 — Ticker mentioned only in passing or historical context
+  0.0 — No actionable content
+```
+
+After parsing, write `confidence` to `recommendations.confidence_score`. If the LLM response does not include `confidence`, default to `0.5`.
+
+### C2 — Backfill existing recommendations
+
+Write a one-shot script `scripts/backfill_confidence.py`:
+- Queries all recommendations where `confidence_score IS NULL`
+- For each, re-runs only the confidence scoring step by sending the original tweet text with a simplified prompt asking only for the confidence value
+- Updates `confidence_score` in the DB
+- Logs progress every 100 rows
+- Safe to re-run (skips rows where `confidence_score IS NOT NULL`)
+
+### C — Verification checklist before marking complete
+- [ ] New recommendations written by `llm_parser.py` have `confidence_score` populated
+- [ ] `backfill_confidence.py` runs to completion without error
+- [ ] Spot-check: explicit BUY calls have score >= 0.8, vague mentions have score <= 0.5
+- [ ] No existing `excluded_reason` values overwritten by the backfill
+
+---
+
+## Session D — Profile Page UI
+
+**Prerequisite:** Sessions A and B complete and verified.
+**Scope:** Frontend only (`apps/web/src/`). No backend changes.
+
+### D1 — New hook: `useCredibility(username)`
+
+In `hooks/useCredibility.ts`:
+- Fetches `GET /api/v1/users/:username/credibility`
+- Returns `{ credibility: ExpertCredibility | null, isLoading, error }`
+- Cache key: `['credibility', username]`
+- Stale time: 5 minutes
+
+### D2 — New component: `CredibilityScoreDial`
+
+File: `components/credibility/CredibilityScoreDial.tsx`
+
+SVG arc dial, consistent with Hamilton design system:
+- Circular arc showing score 0–100
+- Arc color: green (`--color-positive`) for score >= 60, amber (`--color-warning`) for 30–59, red (`--color-negative`) for < 30
+- Score number centered in large `--font-mono` type
+- Label below: "Platform Credibility" or "Public Statement Evaluation" depending on prop
+- Accepts: `score: number | null`, `label: string`, `size?: 'sm' | 'md'`
+- If `score` is null: render greyed-out arc at 0 with "—" in center
+
+### D3 — New component: `PerformanceCard`
+
+File: `components/credibility/PerformanceCard.tsx`
+
+Displays one track (platform or public) with 30d/90d tab switcher:
+```
+[30 Days]  [90 Days]         ← tab switcher, accent underline on active
+
+┌────────────────┬───────────────────┐
+│  Win Rate      │   Avg Return      │
+│  [dial]        │                   │
+│  69%           │   +46.2%          │
+│  X/Y calls     │   per call        │
+└────────────────┴───────────────────┘
+
+Measured over {window}-day windows from call date.
+[ⓘ] How is this calculated?
+```
+
+The ⓘ tooltip explains: "A call is successful if the asset moves more than 2% in the predicted direction within the measurement window. Score combines win rate, average return, call volume, and recency."
+
+The 90-day tab shows "Insufficient data" text (not an error) when `score_90d` is null but `score_30d` is not — this is expected for newer calls.
+
+Accepts: `track: CredibilityTrack`, `label: string`
+
+### D4 — New component: `RatingDistributionChart`
+
+File: `components/credibility/RatingDistributionChart.tsx`
+
+SVG donut chart:
+- Buy segment: `--color-positive` (green)
+- Hold segment: `--color-text-tertiary` (grey)
+- Sell segment: `--color-negative` (red)
+- Legend to the right: "Buy X%" / "Hold X%" / "Sell X%" with colored dots
+- Total call count below chart: "{N} Ratings"
+- If `rating_distribution` is null: render placeholder donut in grey with "—" labels
+
+### D5 — New component: `StockCoverageTable`
+
+File: `components/credibility/StockCoverageTable.tsx`
+
+Columns: Ticker | Direction | Target Price | Return | Date
+
+- Ticker: uppercase monospace pill
+- Direction: BUY in green, SELL in red, HOLD in grey
+- Target Price: monospace, prefixed with $, "—" if null
+- Return: green if positive, red if negative, "Pending" if outcome not yet measured
+- Date: formatted as MMM DD 'YY
+
+If `display_state` is `PLATFORM_PRIMARY` and public data also exists, show source toggle above the table:
+```
+Source: [Platform Calls]  [Public Statements]
+```
+Active tab has accent underline. Toggle switches dataset shown in table.
+
+If no calls in selected source: "No calls recorded yet."
+
+### D6 — Integrate into `ProfilePage`
+
+Add **Credibility** as the first tab in `ProfilePage`. Tab order: **Credibility** | Posts | Recommendations
+
+Render one of four layouts based on `credibility.display_state`:
+
+**NO_DATA:**
+```
+"Building track record..."
+"Follow this expert to be notified when their credibility score is ready."
+```
+
+**PUBLIC_ONLY:**
+```
+[public_note banner]
+<PerformanceCard track={public_statements} label="Public Statement Evaluation" />
+<RatingDistributionChart data={public_statements.rating_distribution} />
+<StockCoverageTable source="public" />
+```
+
+**PLATFORM_PRIMARY:**
+```
+<PerformanceCard track={platform} label="Platform Credibility" />
+<RatingDistributionChart data={platform.rating_distribution} />
+
+// Only if social_call_count >= 20:
+<CollapsibleSection title="Public Statement Evaluation">
+  <PerformanceCard track={public_statements} label="Public Statement Evaluation" />
+  <RatingDistributionChart data={public_statements.rating_distribution} />
+</CollapsibleSection>
+
+<StockCoverageTable
+  platformCalls={...}
+  publicCalls={public data exists ? ... : undefined}
+/>
+```
+
+**PLATFORM_ONLY:**
+```
+<PerformanceCard track={platform} label="Platform Credibility" />
+<RatingDistributionChart data={platform.rating_distribution} />
+<StockCoverageTable source="platform" />
+```
+
+### D7 — Explicitly out of scope for this session — do not build
+
+- Ranking position
+- Sector breakdown
+- GEO coverage breakdown
+- Best Rating highlight card
+- Any benchmark comparison
+
+Leave no placeholder UI for these items.
+
+### D — Verification checklist before marking complete
+- [ ] Credibility tab is first tab on ProfilePage
+- [ ] All four display states render without console errors
+- [ ] `CredibilityScoreDial` arc is visible and color-coded correctly
+- [ ] 30d/90d tab switcher updates dial and stats without page reload
+- [ ] Source toggle switches between platform and public data in coverage table
+- [ ] "Pending" return shown for calls with no measured outcome
+- [ ] Mobile layout: single column, no horizontal overflow
+- [ ] `npx tsc --noEmit` passes with zero errors
+
+---
+
+## Cross-Session Rules for All Agents
+
+- **Never merge platform and public scores into one number.** Always displayed in separate UI sections with distinct labels.
+- **`display_state` is computed server-side.** Frontend branches on it — never derives it from counts.
+- **"Public Statement Evaluation" is the exact label to use.** Do not substitute "social", "unverified", "external", or any other term.
+- **Minimum thresholds are hard rules:** platform score requires 10+ calls, public score requires 20+ calls. Below threshold the score field is `null`, not zero, and is not displayed.
+- **All score computation happens in `CredibilityService.computeForExpert`.** KolService, PostsService, and the frontend never compute scores inline.
+- **Redis cache key pattern:** `credibility:{expertUserId}` — invalidated on every `computeForExpert` run.
+- **Do not modify `kol_scores` table.** That table belongs to the KOL pipeline's own scoring system. Hamilton's credibility engine reads from `recommendations` and `price_snapshots` directly and writes only to `credibility_scores`.

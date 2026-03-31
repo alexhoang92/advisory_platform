@@ -11,3 +11,4 @@ python-dateutil==2.9.0.post0
 pytz==2025.2
 psycopg2-binary==2.9.11
 sentry-sdk==2.53.0
+alembic==1.14.1

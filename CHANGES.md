@@ -1,6 +1,182 @@
 # Change Log
 
 ---
+## Phase 3 — Credibility Engine (31-Mar-2026)
+
+### Session A — Schema Migrations
+
+**A1 — `credibility_scores` table rebuilt** (`20260331140000_add_credibility_scores`)
+- Replaced old 7-field simple table with dual-track schema: platform and public (social) tracks, each with 30d/90d windows, composite integer scores (0–100), win rate, avg return, call counts, JSON rating distributions
+- New fields: `displayState`, `platformCallCount`, `platformScore30d/90d`, `socialCallCount`, `socialScore30d/90d`, `platformRatingDist`, `socialRatingDist`, `windowNote`
+- `User.credibilityScore` relation renamed from `credibility_score` to `credibilityScore`
+
+**A2 — `PortfolioCall` extended** (`20260331140001_add_portfolio_call_outcome_fields`)
+- Added `success30d Boolean?`, `success90d Boolean?`, `measuredAt DateTime?` — written back by the scoring engine on each compute run
+
+**A3 — Python `recommendations` table extended via Alembic**
+- Added `confidence_score Float`, `superseded_by_platform_call_id String`, `excluded_reason String` to SQLAlchemy `Recommendation` model
+- Initialized Alembic (`alembic/`, `alembic.ini`) configured to read `DATABASE_URL` and import `db.models.Base`
+- Migration `0001_add_recommendation_credibility_fields` applied and at HEAD
+- Added `alembic==1.14.1` to `requirements.txt`
+
+**A4 — Shared TypeScript types**
+- Added `CredibilityDisplayState`, `RatingDistribution`, `CredibilityTrack`, `ExpertCredibility` to `packages/shared/src/types/index.ts`
+- Extended `User` interface with `credibility?: ExpertCredibility`
+
+---
+
+### Session B — Credibility Scoring Engine (NestJS)
+
+**New module: `apps/api/src/credibility/`**
+- `credibility.module.ts` — BullModule with async Redis config (graceful if `REDIS_URL` unset), registers `credibility` queue
+- `credibility.service.ts` — core engine:
+  - `computeForExpert(expertUserId)`: fetches platform calls → computes `success30d`/`success90d` (LONG >+2%, SHORT <-2%), writes flags back; fetches social calls via `KolService.getSocialCallsForScoring()`; applies ±7-day conflict resolution (flags superseded social calls); scores both tracks independently using formula `win_rate×0.4 + return×0.3 + volume×0.15 + recency×0.15`; determines `displayState`; upserts `credibility_scores`; invalidates Redis cache
+  - `getForExpert(expertUserId)`: Redis → DB fallback, 1h TTL, returns `NO_DATA` shape when no row exists
+  - `triggerRecompute(expertUserId)`: enqueues BullMQ job or runs inline if Redis unavailable
+  - `nightlyBatch()`: `@Cron(EVERY_DAY_AT_2AM)` — enqueues recompute for all experts with linked KOL handle
+- `credibility.processor.ts` — `@Process('credibility-recompute')` BullMQ handler
+- `credibility.controller.ts`:
+  - `GET /api/v1/users/:username/credibility` — public, returns `null` for non-experts
+  - `POST /api/v1/users/:username/credibility/recompute` — dev/admin trigger
+
+**KolService additions:**
+- `getSocialCallsForScoring(handle)` — returns recommendations with T0/T30D/T90D price snapshots, excluding already-excluded rows
+- `markRecommendationSuperseded(recId, platformCallId)` — sets `excluded_reason = 'superseded'`
+
+**UsersService / UsersModule:**
+- `findByUsername` now attaches `credibility` from cached `getForExpert` for expert users
+- `UsersModule` imports `CredibilityModule`
+
+**Packages added:** `bull`, `@nestjs/bull`, `ioredis`
+
+---
+
+### Session C — KOL Parser: Confidence Scoring
+
+**`parser/llm_parser.py`**
+- Extended Claude prompt to return `confidence` field (0.0–1.0) with detailed per-tier guidelines
+- Saves `confidence_score` when writing `Recommendation` to DB; defaults to `0.5` if LLM omits it
+
+**`scripts/backfill_confidence.py`**
+- Queries all `recommendations` where `confidence_score IS NULL`, batches 100 at a time
+- Sends `signal_text` (or original tweet text) to `claude-haiku` with a simplified confidence-only prompt
+- Commits every 100 rows, logs progress %; aborts cleanly on API errors; defaults failing rows to `0.5`
+- Safe to re-run (skips rows where `confidence_score IS NOT NULL`)
+
+---
+
+### Session D — Profile Page UI
+
+**New components: `apps/web/src/components/credibility/`**
+- `CredibilityScoreDial.tsx` — SVG arc dial (270° sweep), color-coded green/amber/red by score bracket, `—` when null, `sm`/`md` size variants
+- `PerformanceCard.tsx` — 30d/90d tab switcher; shows dial + win rate + avg return; "Insufficient data" copy when 90d null; ⓘ tooltip explains formula
+- `RatingDistributionChart.tsx` — SVG donut chart (buy/hold/sell); legend + total count; placeholder state for null data
+- `StockCoverageTable.tsx` — ticker/direction/target/return/date table; source toggle (Platform Calls / Public Statements) when `PLATFORM_PRIMARY` with ≥20 social calls; "Pending" for unscored returns; fetches platform calls via `/users/:username/calls`, public calls via `/kol-profiles/:username/recommendations`
+
+**New hook: `apps/web/src/hooks/useCredibility.ts`**
+- Fetches `GET /api/v1/users/:username/credibility`; 5-min stale time; only enabled for expert users
+
+**`apps/web/src/pages/ProfilePage.tsx`**
+- `HamiltonUserProfile` now has three tabs: **Credibility** (first, experts only) | Posts | Recommendations
+- Four `CredibilityTab` display state layouts:
+  - `NO_DATA` — placeholder with "Building track record..." message
+  - `PUBLIC_ONLY` — info banner + `PerformanceCard` + `RatingDistributionChart` for public track
+  - `PLATFORM_PRIMARY` — platform track primary; collapsible "Public Statement Evaluation" section if ≥20 social calls; coverage table with source toggle
+  - `PLATFORM_ONLY` — platform track only, no public section, no toggle
+
+---
+## _Changes 31-Mar-2026:
+
+### 1. Signup flow — removed display name field
+- Registration now requires only email, username, password, and role.
+- `display_name` defaults to `username` on user creation (backend).
+- Removed from `RegisterSchema` (shared), `RegisterDto` (API), and `RegisterPage` (frontend).
+
+### 2. Account Settings page
+- **Entry point:** clicking the user card (bottom-left sidebar) navigates to `/settings`.
+- **Bio:** editable textarea, hard-capped at 200 characters with live counter.
+- **Password change:** current password verification → new password (min 8 chars) → confirm.
+- New `PATCH /api/v1/users/me/password` endpoint added (bcrypt verification + re-hash).
+- New `SettingsPage` component at `apps/web/src/pages/SettingsPage.tsx`.
+
+### 3. KOL hero section & leaderboard — live Neon queries
+- Leaderboard now computes win rates **live** from `recommendations + price_snapshots` tables,
+  removing the dependency on the pre-computed `kol_scores` table. Data shows without a pipeline re-run.
+- Top Opportunities time window extended from 7 days → 90 days.
+- Recent Calls: `posted_at` handled as nullable; `timeAgo()` shows `"recently"` for null/invalid timestamps.
+
+
+
+## _Changes 31-Mar-2026 round 2:
+
+### 1. Follow system — backend + frontend
+- `POST /api/v1/users/:username/follow` — follow a user (auth required, no-op if already following)
+- `DELETE /api/v1/users/:username/follow` — unfollow a user (auth required)
+- `GET /api/v1/users/:username` now uses OptionalJwtGuard so it returns `is_following: true/false` for authenticated callers
+- `findByUsername` returns `follower_count`, `following_count`, `is_following`, and linked `kol_profile` in the response
+- New `useFollow(username)` hook: optimistic cache updates for follow/unfollow mutations
+- Unfollow requires confirmation via `ConfirmModal` component
+
+### 2. Enhanced ProfilePage
+- Shows **follower / following counts** in the profile header
+- **Follow / Unfollow button** for non-own profiles (redirects to login if unauthenticated)
+- `Posts` tab: loads actual posts by that author via `GET /posts?author=:username`
+- `Recommendations` tab (experts with linked KOL profile): fetches live social recommendations from KOL-tracker DB via `GET /kol-profiles/:handle/recommendations`
+- **Verified KOL** badge shown when the user has claimed a KOL profile
+- Twitter/X handle link shown for claimed KOL profiles
+- Back button added for easy navigation
+
+### 3. Follow button on PostDetailPage
+- Follow / Unfollow button shown beside the author name on post detail pages
+- Fetches author profile to get live `is_following` state
+- Instant optimistic cache update — no full page reload needed
+
+### 4. Posts by author filter
+- `GET /api/v1/posts?author=:username` now returns posts filtered to a specific user
+- Works independently of feed filter (latest/followed/trending)
+
+### 5. KOL recommendations per profile
+- `GET /api/v1/kol-profiles/:handle/recommendations` — new endpoint returning recent social calls for a specific KOL handle
+- Backed by `KolService.getRecommendationsByHandle()` querying the KOL-tracker Neon DB
+
+### 6. Shared types
+- `User` extended with `follower_count?`, `following_count?`, `is_following?`, `kol_profile?`
+- New `KolProfileSummary` interface added to `@hamilton/shared`
+
+### 7. New UI component
+- `ConfirmModal` — reusable modal dialog used for the unfollow confirmation flow
+
+---
+
+## _Changes 31-Mar-2026 round 3:
+
+### 1. Leaderboard ranking — corrected logic
+- **Minimum 20 calls** required to appear (`HAVING COUNT(r.id) >= 20`); KOLs below threshold excluded entirely
+- **Sorted by `win_rate DESC`** (percentage of correct calls), `correct_calls` as tiebreaker — was previously sorted by total call count
+- Removed JS-side qualified/unqualified split; now enforced entirely in SQL
+- `qualified` field always `true` for returned entries (filter already applied)
+
+### 2. KOL data pipeline fixes
+- Leaderboard was empty — `JOIN recommendations` inner-joined out all KOLs with 0 calls; changed to `LEFT JOIN` with `HAVING` for the 20-call cutoff
+- Top opportunities price-change formula was inverted (`(ps0−ps7)/ps7`) → corrected to `(ps7−ps0)/ps0`
+- `KolLeaderboard` and hero TopExpertsBox show "Tracking…" instead of "0%" when no calls recorded yet
+- Created `scripts/seed_kol_recommendations.py` — dev seed script injecting 278 realistic recommendations + price snapshots for 10 KOLs with realistic win-rate biases
+
+### 3. Hero section — all 3 boxes carousel-ified
+- Most Credible Experts and Top Buying Opportunities now match the Live Recommendations carousel pattern
+- Each box: one card at a time, auto-cycles every 3–3.5 s, clickable dot indicators, scrolling ticker tape
+- Most Credible Experts card: rank (colour-coded gold/silver/bronze), name, call count, large win rate %, avg return sentence
+- Top Buying Opportunities card: ticker + BUY badge, 7d price change %, scaled buy-volume progress bar
+
+### 4. Feed page UI overhaul
+- Removed user profile card, "New Post" card, and "About Hamilton" card from right panel
+- KolLeaderboard remains in right panel
+- **Floating FAB**: green circular button fixed `bottom-6 right-6`, pen icon, links to `/posts/new`
+- **Hero section at full width**: moved to new `AppLayout.topSlot` — renders across the full center column width above the `max-w-2xl` feed container; eliminates text wrapping in market pulse cards
+- `AppLayout` extended with optional `topSlot?: React.ReactNode` prop
+- Hero card header fonts reduced one step (`text-sm`→`text-xs`, `text-[10px]`→`text-[9px]`); LIVE badge also shrunk to prevent wrapping
+
+---
 
 ## 2026-03-31 — Unified profiles & Social Hearing feed (branch: KOL_scraper_clone)
 

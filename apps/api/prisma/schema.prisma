@@ -108,7 +108,7 @@ model User {
   post_unlocks       PostUnlock[]
   tips_sent          Tip[]             @relation("TipSender")
   portfolio_calls    PortfolioCall[]   @relation("ExpertCalls")
-  credibility_score  CredibilityScore?
+  credibilityScore   CredibilityScore?
   mentioned_in_posts Post[]            @relation("PostUserMentions")
   post_likes         PostLike[]
   post_saves         PostSave[]
@@ -179,6 +179,9 @@ model PortfolioCall {
   outcome_return Decimal?        @db.Decimal(10, 4)
   opened_at      DateTime        @default(now())
   closed_at      DateTime?
+  success30d     Boolean?
+  success90d     Boolean?
+  measuredAt     DateTime?
 
   post   Post @relation(fields: [post_id], references: [id], onDelete: Cascade)
   expert User @relation("ExpertCalls", fields: [expert_id], references: [id], onDelete: Cascade)
@@ -250,16 +253,44 @@ model Tip {
 }
 
 model CredibilityScore {
-  expert_id          String   @id
-  score              Decimal  @db.Decimal(5, 2)
-  win_rate           Decimal  @db.Decimal(5, 4)
-  avg_return_per_call Decimal @db.Decimal(10, 4)
-  total_calls        Int
-  calls_closed       Int
-  follower_growth_30d Int
-  computed_at        DateTime @default(now()) @updatedAt
+  id                   String   @id @default(cuid())
+  expertUserId         String   @unique
+  expert               User     @relation(fields: [expertUserId], references: [id], onDelete: Cascade)
 
-  expert User @relation(fields: [expert_id], references: [id], onDelete: Cascade)
+  displayState         String   // 'NO_DATA' | 'PUBLIC_ONLY' | 'PLATFORM_PRIMARY' | 'PLATFORM_ONLY'
+
+  // Platform track — 30-day window
+  platformWinRate30d   Float?
+  platformAvgReturn30d Float?
+  platformCallCount    Int      @default(0)
+  platformScore30d     Int?     // 0–100, null if below threshold
+  platformCallsLast90d Int      @default(0)
+
+  // Platform track — 90-day window
+  platformWinRate90d   Float?
+  platformAvgReturn90d Float?
+  platformScore90d     Int?     // 0–100, null if below threshold
+
+  // Platform rating distribution
+  platformRatingDist   Json?    // { buy_pct, hold_pct, sell_pct, total_count }
+
+  // Public track — 30-day window
+  socialWinRate30d     Float?
+  socialAvgReturn30d   Float?
+  socialCallCount      Int      @default(0)
+  socialScore30d       Int?     // 0–100, null if below threshold
+  socialCallsLast90d   Int      @default(0)
+
+  // Public track — 90-day window
+  socialWinRate90d     Float?
+  socialAvgReturn90d   Float?
+  socialScore90d       Int?     // 0–100, null if below threshold
+
+  // Public rating distribution
+  socialRatingDist     Json?    // { buy_pct, hold_pct, sell_pct, total_count }
+
+  computedAt           DateTime @default(now())
+  windowNote           String?  // e.g. "Insufficient data for 90-day window"
 
   @@map("credibility_scores")
 }

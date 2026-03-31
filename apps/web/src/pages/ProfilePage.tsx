@@ -11,6 +11,8 @@ import {
   TrendingUp,
   ExternalLink,
   Users,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Card } from '../components/ui/Card';
@@ -18,14 +20,19 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { PostCard } from '../components/posts/PostCard';
+import { PerformanceCard } from '../components/credibility/PerformanceCard';
+import { RatingDistributionChart } from '../components/credibility/RatingDistributionChart';
+import { StockCoverageTable } from '../components/credibility/StockCoverageTable';
 import { useUser } from '../hooks/useUser';
 import { useFollow } from '../hooks/useFollow';
 import { useKolProfile } from '../hooks/useKolProfile';
 import { useKolFollow } from '../hooks/useKolFollow';
+import { useCredibility } from '../hooks/useCredibility';
 import { useInfinitePostsByAuthor } from '../hooks/usePosts';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../lib/api';
 import { useQuery } from '@tanstack/react-query';
+import type { ExpertCredibility } from '@hamilton/shared';
 
 function formatJoinDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -329,6 +336,109 @@ function KolProfileView({ handle }: { handle: string }) {
   );
 }
 
+// ─── Credibility Tab ─────────────────────────────────────────────────────────
+
+function CollapsibleSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-elevated)] transition-colors text-left"
+      >
+        <span className="text-sm font-semibold text-[var(--color-text-secondary)]">{title}</span>
+        {open ? (
+          <ChevronUp size={14} className="text-[var(--color-text-tertiary)]" />
+        ) : (
+          <ChevronDown size={14} className="text-[var(--color-text-tertiary)]" />
+        )}
+      </button>
+      {open && <div className="flex flex-col gap-4 p-4 bg-[var(--color-bg-surface)]">{children}</div>}
+    </div>
+  );
+}
+
+function CredibilityTab({
+  username,
+  credibility,
+}: {
+  username: string;
+  credibility: ExpertCredibility | null | undefined;
+}) {
+  if (!credibility || credibility.display_state === 'NO_DATA') {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-[var(--color-border)] rounded-xl">
+        <TrendingUp size={32} className="text-[var(--color-text-tertiary)] mb-3" />
+        <p className="text-sm font-semibold text-[var(--color-text-secondary)] mb-1">
+          Building track record...
+        </p>
+        <p className="text-xs text-[var(--color-text-tertiary)] max-w-xs">
+          Follow this expert to be notified when their credibility score is ready.
+        </p>
+      </div>
+    );
+  }
+
+  const { display_state, platform, public_statements, public_note } = credibility;
+
+  const showPublicInPlatformPrimary =
+    display_state === 'PLATFORM_PRIMARY' &&
+    public_statements !== null &&
+    (public_statements.call_count ?? 0) >= 20;
+
+  const showCoverageToggle =
+    display_state === 'PLATFORM_PRIMARY' && showPublicInPlatformPrimary;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* PUBLIC_ONLY banner */}
+      {display_state === 'PUBLIC_ONLY' && public_note && (
+        <div className="px-4 py-3 rounded-xl bg-[#4a9eff12] border border-[#4a9eff30] text-xs text-[var(--color-info)] leading-relaxed">
+          {public_note}
+        </div>
+      )}
+
+      {/* Platform primary score */}
+      {(display_state === 'PLATFORM_PRIMARY' || display_state === 'PLATFORM_ONLY') &&
+        platform && (
+          <>
+            <PerformanceCard track={platform} label="Platform Credibility" />
+            <RatingDistributionChart data={platform.rating_distribution} />
+          </>
+        )}
+
+      {/* Public primary score */}
+      {display_state === 'PUBLIC_ONLY' && public_statements && (
+        <>
+          <PerformanceCard track={public_statements} label="Public Statement Evaluation" />
+          <RatingDistributionChart data={public_statements.rating_distribution} />
+        </>
+      )}
+
+      {/* Secondary public section (collapsible) */}
+      {showPublicInPlatformPrimary && public_statements && (
+        <CollapsibleSection title="Public Statement Evaluation">
+          <PerformanceCard track={public_statements} label="Public Statement Evaluation" />
+          <RatingDistributionChart data={public_statements.rating_distribution} />
+        </CollapsibleSection>
+      )}
+
+      {/* Stock coverage table */}
+      <StockCoverageTable
+        username={username}
+        displayState={display_state}
+        showToggle={showCoverageToggle}
+      />
+    </div>
+  );
+}
+
 // ─── Hamilton User Profile View ───────────────────────────────────────────────
 
 function HamiltonUserProfile({ username }: { username: string }) {
@@ -336,7 +446,10 @@ function HamiltonUserProfile({ username }: { username: string }) {
   const { data: user, isLoading, isError } = useUser(username);
   const { follow, unfollow } = useFollow(username);
   const [showUnfollowModal, setShowUnfollowModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'posts' | 'calls'>('posts');
+  const [activeTab, setActiveTab] = useState<'credibility' | 'posts' | 'calls'>('credibility');
+  const { data: credibility } = useCredibility(
+    user?.role === 'expert' ? username : undefined,
+  );
 
   const isOwnProfile = currentUser?.username === username;
   const isLoggedIn = Boolean(currentUser);
@@ -516,10 +629,22 @@ function HamiltonUserProfile({ username }: { username: string }) {
       </Card>
 
       {/* Tabs */}
-      <div className="mt-6 flex items-center gap-1 border-b border-[var(--color-border)]">
+      <div className="mt-6 flex items-center gap-1 border-b border-[var(--color-border)] overflow-x-auto">
+        {user.role === 'expert' && (
+          <button
+            onClick={() => setActiveTab('credibility')}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
+              activeTab === 'credibility'
+                ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+            }`}
+          >
+            Credibility
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('posts')}
-          className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+          className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
             activeTab === 'posts'
               ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
               : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
@@ -530,7 +655,7 @@ function HamiltonUserProfile({ username }: { username: string }) {
         {showCalls && (
           <button
             onClick={() => setActiveTab('calls')}
-            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
               activeTab === 'calls'
                 ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
                 : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
@@ -541,6 +666,13 @@ function HamiltonUserProfile({ username }: { username: string }) {
           </button>
         )}
       </div>
+
+      {/* Credibility tab */}
+      {activeTab === 'credibility' && user.role === 'expert' && (
+        <div className="mt-4">
+          <CredibilityTab username={username} credibility={credibility} />
+        </div>
+      )}
 
       {/* Posts tab */}
       {activeTab === 'posts' && (

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CredibilityService } from '../credibility/credibility.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User as DomainUser } from '@hamilton/shared';
 import * as bcrypt from 'bcrypt';
@@ -24,7 +25,10 @@ interface PrismaUser {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly credibilityService: CredibilityService,
+  ) {}
 
   async searchUsers(
     q: string,
@@ -85,7 +89,14 @@ export class UsersService {
       is_following = follow !== null;
     }
 
-    return this.serializeUser(user, is_following);
+    const serialized = this.serializeUser(user, is_following);
+
+    // Attach credibility for expert users (cached path — never computes inline)
+    if (user.role === 'expert') {
+      serialized.credibility = await this.credibilityService.getForExpert(user.id);
+    }
+
+    return serialized;
   }
 
   async follow(followerId: string, targetUsername: string): Promise<void> {

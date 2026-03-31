@@ -11,6 +11,7 @@ import { TagsModule } from './tags/tags.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { InteractionsModule } from './interactions/interactions.module';
 import { KolProfilesModule } from './kol-profiles/kol-profiles.module';
+import { CredibilityModule } from './credibility/credibility.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 
@@ -30,6 +31,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
     UploadsModule,
     InteractionsModule,
     KolProfilesModule,
+    CredibilityModule,
   ],
   providers: [
     {

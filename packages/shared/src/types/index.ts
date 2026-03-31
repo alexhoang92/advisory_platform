@@ -1,3 +1,38 @@
+// ─── Credibility Engine ──────────────────────────────────────────────────────
+
+export type CredibilityDisplayState =
+  | 'NO_DATA'
+  | 'PUBLIC_ONLY'
+  | 'PLATFORM_PRIMARY'
+  | 'PLATFORM_ONLY';
+
+export interface RatingDistribution {
+  buy_pct: number;
+  hold_pct: number;
+  sell_pct: number;
+  total_count: number;
+}
+
+export interface CredibilityTrack {
+  score_30d: number | null;
+  score_90d: number | null;
+  win_rate_30d: number | null;
+  win_rate_90d: number | null;
+  avg_return_30d: number | null;
+  avg_return_90d: number | null;
+  call_count: number;
+  calls_last_90d: number;
+  rating_distribution: RatingDistribution | null;
+}
+
+export interface ExpertCredibility {
+  display_state: CredibilityDisplayState;
+  platform: CredibilityTrack | null;
+  public_statements: CredibilityTrack | null;
+  computed_at: string;
+  public_note: string | null;
+}
+
 // ─── Enums ──────────────────────────────────────────────────────────────────
 
 export type UserRole = 'expert' | 'retail' | 'admin';
@@ -36,6 +71,7 @@ export interface User {
   following_count?: number;
   is_following?: boolean;
   kol_profile?: KolProfileSummary | null;
+  credibility?: ExpertCredibility;
 }
 
 export interface KolProfileSummary {
@@ -187,15 +223,19 @@ export interface Tip {
   created_at: string;
 }
 
+/** @deprecated Use ExpertCredibility — see credibility engine types above */
 export interface CredibilityScore {
-  expert_id: string;
-  score: number; // 0–100
-  win_rate: number;
-  avg_return_per_call: number;
-  total_calls: number;
-  calls_closed: number;
-  follower_growth_30d: number;
-  computed_at: string;
+  id: string;
+  expertUserId: string;
+  displayState: CredibilityDisplayState;
+  platformScore30d: number | null;
+  platformScore90d: number | null;
+  platformCallCount: number;
+  socialScore30d: number | null;
+  socialScore90d: number | null;
+  socialCallCount: number;
+  computedAt: string;
+  windowNote: string | null;
 }
 
 export interface Ticker {

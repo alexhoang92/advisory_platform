@@ -59,6 +59,10 @@ class Recommendation(Base):
     parse_method     = Column(String(20), default="llm")
     posted_at        = Column(DateTime)
     created_at       = Column(DateTime, default=datetime.utcnow)
+    # Credibility engine fields
+    confidence_score                  = Column(Float, nullable=True)
+    superseded_by_platform_call_id    = Column(String, nullable=True)
+    excluded_reason                   = Column(String, nullable=True)
 
 # ── Table 4: Price Snapshots ───────────────────────────────────
 class PriceSnapshot(Base):
