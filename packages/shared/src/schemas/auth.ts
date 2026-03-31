@@ -11,10 +11,6 @@ export const RegisterSchema = z.object({
     .min(3, 'Username must be at least 3 characters')
     .max(32, 'Username must be at most 32 characters')
     .regex(/^[a-zA-Z0-9_]+$/, 'Username may only contain letters, numbers, and underscores'),
-  display_name: z
-    .string()
-    .min(1, 'Display name is required')
-    .max(64, 'Display name must be at most 64 characters'),
   role: z.enum(['expert', 'retail'], {
     errorMap: () => ({ message: "Role must be 'expert' or 'retail'" }),
   }),

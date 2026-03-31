@@ -143,22 +143,13 @@ export function RegisterPage() {
           {/* Hidden role field */}
           <input type="hidden" {...register('role')} value={selectedRole} />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Display Name"
-              placeholder="Alex Rivera"
-              autoComplete="name"
-              error={errors.display_name?.message}
-              {...register('display_name')}
-            />
-            <Input
-              label="Username"
-              placeholder="alexrivera"
-              autoComplete="username"
-              error={errors.username?.message}
-              {...register('username')}
-            />
-          </div>
+          <Input
+            label="Username"
+            placeholder="alexrivera"
+            autoComplete="username"
+            error={errors.username?.message}
+            {...register('username')}
+          />
 
           <Input
             label="Email"

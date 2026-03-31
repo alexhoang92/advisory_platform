@@ -14,6 +14,7 @@ import { EditProfilePage } from './pages/EditProfilePage';
 import { PostDetailPage } from './pages/PostDetailPage';
 import { CreatePostPage } from './pages/CreatePostPage';
 import { TagExplorePage } from './pages/TagExplorePage';
+import { SettingsPage } from './pages/SettingsPage';
 
 export function App() {
   return (
@@ -56,6 +57,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <CreatePostPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
               </ProtectedRoute>
             }
           />

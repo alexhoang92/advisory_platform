@@ -57,7 +57,7 @@ export class AuthService {
       email: dto.email,
       password_hash,
       username: dto.username,
-      display_name: dto.display_name,
+      display_name: dto.username,
       role: dto.role,
       ...(dto.role === 'expert' && {
         expert_profile: {

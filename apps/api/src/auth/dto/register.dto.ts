@@ -17,11 +17,6 @@ export class RegisterDto {
   })
   username!: string;
 
-  @IsString()
-  @MinLength(1)
-  @MaxLength(64)
-  display_name!: string;
-
   @IsIn(['expert', 'retail'])
   role!: 'expert' | 'retail';
 }

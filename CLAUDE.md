@@ -432,7 +432,7 @@ POLYGON_API_KEY=
 
 ---
 
-_Last updated: 2026-03-29 — Phase 1 complete_
+_Last updated: 2026-03-31 — Phase 1 complete + UX & data fixes_
 ## _Next task 30-Mar-2026: 
 Objective: Design new homepage (pre login) to become a market explore page purposes give users a good sense of value proposition and encourage registration / login.  Following front end design principle of modern trading platform and optimize for mobile browsing screen as well
 
@@ -452,3 +452,26 @@ Task:
 - Rearrange remaining info of homepage prelogin with current data but shorter and more call to action to login
 
 2/ Bring hero section to feedpage (post login) with option for users to click and explore detail longer list one login
+
+---
+
+## _Changes 31-Mar-2026:
+
+### 1. Signup flow — removed display name field
+- Registration now requires only email, username, password, and role.
+- `display_name` defaults to `username` on user creation (backend).
+- Removed from `RegisterSchema` (shared), `RegisterDto` (API), and `RegisterPage` (frontend).
+
+### 2. Account Settings page
+- **Entry point:** clicking the user card (bottom-left sidebar) navigates to `/settings`.
+- **Bio:** editable textarea, hard-capped at 200 characters with live counter.
+- **Password change:** current password verification → new password (min 8 chars) → confirm.
+- New `PATCH /api/v1/users/me/password` endpoint added (bcrypt verification + re-hash).
+- New `SettingsPage` component at `apps/web/src/pages/SettingsPage.tsx`.
+
+### 3. KOL hero section & leaderboard — live Neon queries
+- Leaderboard now computes win rates **live** from `recommendations + price_snapshots` tables,
+  removing the dependency on the pre-computed `kol_scores` table. Data shows without a pipeline re-run.
+- Top Opportunities time window extended from 7 days → 90 days.
+- Recent Calls: `posted_at` handled as nullable; `timeAgo()` shows `"recently"` for null/invalid timestamps.
+

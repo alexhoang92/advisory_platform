@@ -32,7 +32,7 @@ export interface RecentCall {
   direction: string;
   conviction: string | null;
   target_price: number | null;
-  posted_at: string;
+  posted_at: string | null;
 }
 
 @Injectable()
@@ -63,10 +63,13 @@ export class KolService implements OnModuleInit, OnModuleDestroy {
     await this.pool?.end();
   }
 
-  async getLeaderboard(period: string = 'T30D'): Promise<KolLeaderboardEntry[]> {
+  async getLeaderboard(_period: string = 'T30D'): Promise<KolLeaderboardEntry[]> {
     if (!this.pool) return [];
 
     try {
+      // Compute scores live from recommendations + price_snapshots so the
+      // leaderboard always reflects current Neon data without needing a
+      // pipeline re-run.
       const { rows } = await this.pool.query<{
         id: number;
         handle: string;
@@ -84,17 +87,49 @@ export class KolService implements OnModuleInit, OnModuleDestroy {
            k.display_name,
            k.profile_url,
            k.content_type,
-           COALESCE(s.total_calls,   0)::int   AS total_calls,
-           COALESCE(s.correct_calls, 0)::int   AS correct_calls,
-           COALESCE(s.win_rate,      0)::float AS win_rate,
-           COALESCE(s.avg_return_pct,0)::float AS avg_return_pct
+           COUNT(r.id)::int AS total_calls,
+           COUNT(CASE
+             WHEN ps0.price > 0 AND ps7.price IS NOT NULL
+               AND (
+                 (r.direction IN ('BUY','LONG')   AND ps7.price > ps0.price)
+                 OR (r.direction IN ('SELL','SHORT') AND ps7.price < ps0.price)
+               )
+             THEN 1
+           END)::int AS correct_calls,
+           COALESCE(
+             CASE WHEN COUNT(CASE WHEN ps0.price > 0 AND ps7.price IS NOT NULL THEN 1 END) > 0
+             THEN (
+               COUNT(CASE
+                 WHEN ps0.price > 0 AND ps7.price IS NOT NULL
+                   AND (
+                     (r.direction IN ('BUY','LONG')   AND ps7.price > ps0.price)
+                     OR (r.direction IN ('SELL','SHORT') AND ps7.price < ps0.price)
+                   )
+                 THEN 1
+               END)::float
+               / COUNT(CASE WHEN ps0.price > 0 AND ps7.price IS NOT NULL THEN 1 END) * 100
+             )
+             ELSE 0 END, 0
+           )::float AS win_rate,
+           COALESCE(AVG(
+             CASE WHEN ps0.price > 0 AND ps7.price IS NOT NULL
+             THEN ((ps7.price - ps0.price) / ps0.price * 100)
+                  * CASE WHEN r.direction IN ('SELL','SHORT') THEN -1 ELSE 1 END
+             END
+           ), 0)::float AS avg_return_pct
          FROM kols k
-         LEFT JOIN kol_scores s
-           ON s.kol_id = k.id AND s.period = $1
+         JOIN recommendations r
+           ON r.kol_id = k.id
+           AND r.direction IN ('BUY', 'SELL', 'LONG', 'SHORT')
+         LEFT JOIN price_snapshots ps0
+           ON ps0.recommendation_id = r.id AND ps0.snapshot_type = 'T0'
+         LEFT JOIN price_snapshots ps7
+           ON ps7.recommendation_id = r.id AND ps7.snapshot_type = 'T7D'
          WHERE k.is_active = true
-           AND COALESCE(s.total_calls, 0) > 0
-         ORDER BY s.win_rate DESC NULLS LAST`,
-        [period],
+         GROUP BY k.id, k.handle, k.display_name, k.profile_url, k.content_type
+         HAVING COUNT(r.id) > 0
+         ORDER BY win_rate DESC NULLS LAST
+         LIMIT 10`,
       );
 
       const result: KolLeaderboardEntry[] = rows.map((r) => ({
@@ -144,7 +179,7 @@ export class KolService implements OnModuleInit, OnModuleDestroy {
          LEFT JOIN price_snapshots ps7
            ON ps7.recommendation_id = r.id AND ps7.snapshot_type = 'T7D'
          WHERE r.direction = 'BUY'
-           AND r.posted_at >= NOW() - INTERVAL '7 days'
+           AND (r.posted_at IS NULL OR r.posted_at >= NOW() - INTERVAL '90 days')
          GROUP BY r.ticker
          ORDER BY buy_count DESC
          LIMIT 10`,
@@ -198,7 +233,12 @@ export class KolService implements OnModuleInit, OnModuleDestroy {
         direction: r.direction,
         conviction: r.conviction,
         target_price: r.target_price,
-        posted_at: r.posted_at instanceof Date ? r.posted_at.toISOString() : String(r.posted_at),
+        posted_at:
+          r.posted_at instanceof Date
+            ? r.posted_at.toISOString()
+            : r.posted_at
+              ? String(r.posted_at)
+              : null,
       }));
     } catch (err) {
       console.error('[KolService] recent-calls query failed:', err);

@@ -27,7 +27,7 @@ interface RecentCall {
   direction: string;
   conviction: string | null;
   target_price: number | null;
-  posted_at: string;
+  posted_at: string | null;
 }
 
 interface HeroSectionProps {
@@ -35,8 +35,11 @@ interface HeroSectionProps {
   isLoggedIn?: boolean;
 }
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
+function timeAgo(iso: string | null | undefined): string {
+  if (!iso) return 'recently';
+  const ts = new Date(iso).getTime();
+  if (isNaN(ts)) return 'recently';
+  const diff = Date.now() - ts;
   const mins = Math.floor(diff / 60_000);
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.floor(mins / 60);

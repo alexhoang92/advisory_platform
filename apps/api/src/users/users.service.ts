@@ -1,7 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User as DomainUser } from '@hamilton/shared';
+import * as bcrypt from 'bcrypt';
+
+const BCRYPT_COST = 12;
 
 interface PrismaUser {
   id: string;
@@ -74,6 +77,28 @@ export class UsersService {
     });
 
     return this.serializeUser(user);
+  }
+
+  async updatePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const user = await (this.prisma.user.findUnique as (args: any) => Promise<PrismaUser | null>)({
+      where: { id: userId },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isMatch) throw new UnauthorizedException('Current password is incorrect');
+
+    if (newPassword.length < 8) {
+      throw new BadRequestException('New password must be at least 8 characters');
+    }
+
+    const password_hash = await bcrypt.hash(newPassword, BCRYPT_COST);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (this.prisma.user.update as (args: any) => Promise<PrismaUser>)({
+      where: { id: userId },
+      data: { password_hash },
+    });
   }
 
   private serializeUser(user: PrismaUser & { expert_profile?: unknown }): DomainUser & { expert_profile?: unknown } {

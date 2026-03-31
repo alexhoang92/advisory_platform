@@ -7,6 +7,7 @@ import {
   PenSquare,
   TrendingUp,
   LogOut,
+  Settings,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -97,7 +98,10 @@ export function Sidebar() {
       {/* User section */}
       {user && (
         <div className="px-3 py-4 border-t border-[var(--color-border)]">
-          <div className="flex items-center gap-2.5 px-2 py-1.5 mb-2">
+          <button
+            onClick={() => void navigate('/settings')}
+            className="flex items-center gap-2.5 w-full px-2 py-1.5 mb-2 rounded-lg hover:bg-[var(--color-bg-subtle)] transition-colors group"
+          >
             <div className="w-8 h-8 rounded-full bg-[var(--color-bg-subtle)] border border-[var(--color-border)] flex items-center justify-center flex-shrink-0">
               {user.avatar_url ? (
                 <img
@@ -111,7 +115,7 @@ export function Sidebar() {
                 </span>
               )}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1 text-left">
               <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
                 {user.display_name}
               </p>
@@ -119,7 +123,8 @@ export function Sidebar() {
                 @{user.username}
               </p>
             </div>
-          </div>
+            <Settings size={14} className="text-[var(--color-text-tertiary)] group-hover:text-[var(--color-text-secondary)] flex-shrink-0 transition-colors" />
+          </button>
 
           <button
             onClick={handleLogout}
