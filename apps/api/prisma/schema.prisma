@@ -61,6 +61,12 @@ enum SubscriptionStatus {
   past_due
 }
 
+enum KolProfileStatus {
+  unclaimed
+  claimed
+  rejected
+}
+
 enum Market {
   us_stock
   crypto
@@ -93,20 +99,21 @@ model User {
   updated_at       DateTime @updatedAt
 
   // Relations
-  expert_profile   ExpertProfile?
-  posts            Post[]           @relation("AuthorPosts")
-  follows_given    Follow[]         @relation("FollowerRelation")
-  follows_received Follow[]         @relation("FollowingRelation")
-  subscriptions    Subscription[]   @relation("SubscriberRelation")
-  expert_subs      Subscription[]   @relation("ExpertSubRelation")
-  post_unlocks     PostUnlock[]
-  tips_sent        Tip[]            @relation("TipSender")
-  portfolio_calls  PortfolioCall[]  @relation("ExpertCalls")
+  expert_profile     ExpertProfile?
+  posts              Post[]            @relation("AuthorPosts")
+  follows_given      Follow[]          @relation("FollowerRelation")
+  follows_received   Follow[]          @relation("FollowingRelation")
+  subscriptions      Subscription[]    @relation("SubscriberRelation")
+  expert_subs        Subscription[]    @relation("ExpertSubRelation")
+  post_unlocks       PostUnlock[]
+  tips_sent          Tip[]             @relation("TipSender")
+  portfolio_calls    PortfolioCall[]   @relation("ExpertCalls")
   credibility_score  CredibilityScore?
   mentioned_in_posts Post[]            @relation("PostUserMentions")
   post_likes         PostLike[]
   post_saves         PostSave[]
   post_replies       PostReply[]
+  claimed_kol_profile UnclaimedKolProfile? @relation("ClaimedKolProfile")
 
   @@map("users")
 }
@@ -327,4 +334,30 @@ model AssetTag {
   @@index([ticker])
   @@index([name])
   @@map("asset_tags")
+}
+
+// Scraped social profiles (Twitter KOLs) that haven't signed up yet.
+// Modelled on the TripAdvisor "unclaimed listing" pattern — visible publicly,
+// claimable once the KOL registers on Hamilton.
+model UnclaimedKolProfile {
+  id              String           @id @default(cuid())
+  kol_id          Int              @unique   // references kols.id in the KOL-tracker DB
+  twitter_handle  String           @unique
+  display_name    String
+  avatar_url      String?
+  bio             String?
+  followers_count Int              @default(0)
+  content_type    String?
+  profile_url     String?
+  status          KolProfileStatus @default(unclaimed)
+  claimed_user_id String?          @unique
+  claimed_at      DateTime?
+  created_at      DateTime         @default(now())
+  updated_at      DateTime         @updatedAt
+
+  claimed_user User? @relation("ClaimedKolProfile", fields: [claimed_user_id], references: [id], onDelete: SetNull)
+
+  @@index([twitter_handle])
+  @@index([status])
+  @@map("unclaimed_kol_profiles")
 }

@@ -206,6 +206,45 @@ export class KolService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /** Returns distinct tickers referenced in recommendations (for ticker auto-sync). */
+  async getDistinctRecommendationTickers(): Promise<string[]> {
+    if (!this.pool) return [];
+    try {
+      const { rows } = await this.pool.query<{ ticker: string }>(
+        `SELECT DISTINCT ticker FROM recommendations WHERE ticker IS NOT NULL AND ticker <> ''`,
+      );
+      return rows.map((r) => r.ticker.trim().toUpperCase()).filter(Boolean);
+    } catch (err) {
+      console.error('[KolService] getDistinctRecommendationTickers failed:', err);
+      return [];
+    }
+  }
+
+  /** Returns all KOLs for syncing into unclaimed_kol_profiles. */
+  async getAllKols(): Promise<
+    {
+      id: number;
+      handle: string;
+      display_name: string | null;
+      profile_url: string | null;
+      followers_approx: number | null;
+      content_type: string | null;
+    }[]
+  > {
+    if (!this.pool) return [];
+    try {
+      const { rows } = await this.pool.query(
+        `SELECT id, handle, display_name, profile_url, followers_approx, content_type
+         FROM kols
+         WHERE is_active = true`,
+      );
+      return rows;
+    } catch (err) {
+      console.error('[KolService] getAllKols failed:', err);
+      return [];
+    }
+  }
+
   runPipeline(): { started: boolean; message: string } {
     try {
       const venvPython = path.join(this.projectRoot, 'venv', 'bin', 'python3');

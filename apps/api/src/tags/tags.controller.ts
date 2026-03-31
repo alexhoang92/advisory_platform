@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { TagsService } from './tags.service';
 import { SearchTagsDto } from './dto/search-tags.dto';
 
@@ -9,6 +9,12 @@ export class TagsController {
   @Get('search')
   search(@Query() dto: SearchTagsDto) {
     return this.tagsService.search(dto);
+  }
+
+  /** Manually trigger a sync of KOL recommendation tickers into asset_tags. */
+  @Post('sync')
+  syncTickers() {
+    return this.tagsService.syncKolTickers();
   }
 
   @Get(':ticker')

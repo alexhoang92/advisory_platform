@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -9,6 +10,7 @@ import { KolModule } from './kol/kol.module';
 import { TagsModule } from './tags/tags.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { InteractionsModule } from './interactions/interactions.module';
+import { KolProfilesModule } from './kol-profiles/kol-profiles.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 
@@ -18,6 +20,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
       isGlobal: true,
       envFilePath: '.env',
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -26,6 +29,7 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
     TagsModule,
     UploadsModule,
     InteractionsModule,
+    KolProfilesModule,
   ],
   providers: [
     {
