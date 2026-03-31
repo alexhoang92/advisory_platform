@@ -34,6 +34,29 @@ export function useInfinitePosts(filter: FeedFilter = 'latest') {
   });
 }
 
+// ─── Posts by Author ──────────────────────────────────────────────────────────
+
+export function useInfinitePostsByAuthor(username: string) {
+  return useInfiniteQuery({
+    queryKey: [POSTS_KEY, 'author', username],
+    queryFn: async ({ pageParam }) => {
+      const cursor = pageParam as string | undefined;
+      const params = new URLSearchParams({ author: username, limit: '10' });
+      if (cursor) params.set('cursor', cursor);
+      const response = await api.get<Post[]>(`/posts?${params.toString()}`);
+      return response;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage: ApiResponse<Post[]>) => {
+      if (lastPage.meta?.has_more && lastPage.meta.cursor) {
+        return lastPage.meta.cursor;
+      }
+      return undefined;
+    },
+    enabled: Boolean(username),
+  });
+}
+
 // ─── Posts by Ticker ─────────────────────────────────────────────────────────
 
 export function useInfinitePostsByTicker(ticker: string) {

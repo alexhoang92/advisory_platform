@@ -9,10 +9,14 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { KolProfilesService } from './kol-profiles.service';
+import { KolService } from '../kol/kol.service';
 
 @Controller('kol-profiles')
 export class KolProfilesController {
-  constructor(private readonly service: KolProfilesService) {}
+  constructor(
+    private readonly service: KolProfilesService,
+    private readonly kolService: KolService,
+  ) {}
 
   /** List KOL profiles. Optionally filter by status (unclaimed | claimed). */
   @Get()
@@ -40,5 +44,14 @@ export class KolProfilesController {
   @UseGuards(JwtAuthGuard)
   claim(@Param('handle') handle: string, @Request() req: any) {
     return this.service.claimProfile(handle, req.user.id);
+  }
+
+  /** Get recent recommendations for a specific KOL by Twitter handle. */
+  @Get(':handle/recommendations')
+  getRecommendations(
+    @Param('handle') handle: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.kolService.getRecommendationsByHandle(handle, limit ? parseInt(limit, 10) : 20);
   }
 }

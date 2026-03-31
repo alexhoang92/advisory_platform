@@ -1,12 +1,14 @@
 import React from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, Edit2, Trash2, Calendar } from 'lucide-react';
+import { ArrowLeft, Lock, Edit2, Trash2, Calendar, UserPlus, UserCheck } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { TickerChip } from '../components/posts/TickerChip';
 import { usePost, useDeletePost } from '../hooks/usePosts';
+import { useUser } from '../hooks/useUser';
+import { useFollow } from '../hooks/useFollow';
 import { useAuthStore } from '../stores/authStore';
 import type { Post } from '@hamilton/shared';
 
@@ -42,6 +44,13 @@ export function PostDetailPage() {
 
   const isAuthor = currentUser?.id === post?.author_id;
   const isLocked = post?.locked === true;
+
+  // Follow state for the post author
+  const authorUsername = post?.author?.username ?? '';
+  const { data: authorProfile } = useUser(authorUsername);
+  const { follow, unfollow } = useFollow(authorUsername);
+  const isFollowingAuthor = authorProfile?.is_following ?? false;
+  const showFollowButton = Boolean(currentUser) && !isAuthor && authorUsername;
 
   async function handleDelete() {
     if (!id || !confirm('Delete this post? This cannot be undone.')) return;
@@ -129,36 +138,55 @@ export function PostDetailPage() {
 
         {/* Author + date */}
         {post.author && (
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-9 h-9 rounded-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] flex items-center justify-center overflow-hidden">
-              {post.author.avatar_url ? (
-                <img
-                  src={post.author.avatar_url}
-                  alt={post.author.display_name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="font-mono text-xs text-[var(--color-text-secondary)]">
-                  {post.author.display_name.slice(0, 2).toUpperCase()}
-                </span>
-              )}
-            </div>
-            <div>
-              <Link
-                to={`/profile/${post.author.username}`}
-                className="text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-accent)] transition-colors"
-              >
-                {post.author.display_name}
+          <div className="flex items-center justify-between gap-3 mb-5">
+            <div className="flex items-center gap-3">
+              <Link to={`/profile/${post.author.username}`}>
+                <div className="w-9 h-9 rounded-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] flex items-center justify-center overflow-hidden">
+                  {post.author.avatar_url ? (
+                    <img
+                      src={post.author.avatar_url}
+                      alt={post.author.display_name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="font-mono text-xs text-[var(--color-text-secondary)]">
+                      {post.author.display_name.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                </div>
               </Link>
-              <div className="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
-                <span className="font-mono">@{post.author.username}</span>
-                <span>·</span>
-                <span className="flex items-center gap-1">
-                  <Calendar size={10} />
-                  {post.published_at ? formatDate(post.published_at) : formatDate(post.created_at)}
-                </span>
+              <div>
+                <Link
+                  to={`/profile/${post.author.username}`}
+                  className="text-sm font-medium text-[var(--color-text-primary)] hover:text-[var(--color-accent)] transition-colors"
+                >
+                  {post.author.display_name}
+                </Link>
+                <div className="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
+                  <span className="font-mono">@{post.author.username}</span>
+                  <span>·</span>
+                  <span className="flex items-center gap-1">
+                    <Calendar size={10} />
+                    {post.published_at ? formatDate(post.published_at) : formatDate(post.created_at)}
+                  </span>
+                </div>
               </div>
             </div>
+
+            {showFollowButton && (
+              <Button
+                variant={isFollowingAuthor ? 'secondary' : 'primary'}
+                size="sm"
+                onClick={() => isFollowingAuthor ? unfollow.mutate() : follow.mutate()}
+                loading={follow.isPending || unfollow.isPending}
+              >
+                {isFollowingAuthor ? (
+                  <><UserCheck size={13} /> Following</>
+                ) : (
+                  <><UserPlus size={13} /> Follow</>
+                )}
+              </Button>
+            )}
           </div>
         )}
 

@@ -1,23 +1,123 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { MapPin, Globe, Calendar, Edit2 } from 'lucide-react';
+import {
+  MapPin,
+  Globe,
+  Calendar,
+  Edit2,
+  UserPlus,
+  UserCheck,
+  ArrowLeft,
+  TrendingUp,
+  ExternalLink,
+} from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { PostCard } from '../components/posts/PostCard';
 import { useUser } from '../hooks/useUser';
+import { useFollow } from '../hooks/useFollow';
+import { useInfinitePostsByAuthor } from '../hooks/usePosts';
 import { useAuthStore } from '../stores/authStore';
+import { api } from '../lib/api';
+import { useQuery } from '@tanstack/react-query';
 
 function formatJoinDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+function timeAgo(iso: string | null): string {
+  if (!iso) return 'recently';
+  const diff = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return 'today';
+  if (days === 1) return '1d ago';
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  return `${months}mo ago`;
+}
+
+function DirectionBadge({ direction }: { direction: string }) {
+  const upper = direction.toUpperCase();
+  const isBuy = upper === 'BUY' || upper === 'LONG';
+  const isSell = upper === 'SELL' || upper === 'SHORT';
+  return (
+    <span
+      className={`font-mono text-xs font-bold px-2 py-0.5 rounded ${
+        isBuy
+          ? 'bg-[var(--color-accent-muted)] text-[var(--color-accent)]'
+          : isSell
+          ? 'bg-[#ff500020] text-[var(--color-negative)]'
+          : 'bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)]'
+      }`}
+    >
+      {isBuy ? 'BUY' : isSell ? 'SELL' : upper}
+    </span>
+  );
+}
+
+interface RecentCall {
+  id: number;
+  ticker: string;
+  direction: string;
+  conviction: string | null;
+  posted_at: string | null;
+}
+
+function useKolRecommendations(twitterHandle: string | null | undefined) {
+  return useQuery({
+    queryKey: ['kol-recommendations', twitterHandle],
+    queryFn: async () => {
+      const response = await api.get<RecentCall[]>(
+        `/kol-profiles/${twitterHandle}/recommendations?limit=10`,
+      );
+      return response.data ?? [];
+    },
+    enabled: Boolean(twitterHandle),
+  });
 }
 
 export function ProfilePage() {
   const { username } = useParams<{ username: string }>();
   const currentUser = useAuthStore((s) => s.user);
   const { data: user, isLoading, isError } = useUser(username ?? '');
+  const { follow, unfollow } = useFollow(username ?? '');
+  const [showUnfollowModal, setShowUnfollowModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'posts' | 'calls'>('posts');
 
   const isOwnProfile = currentUser?.username === username;
+  const isLoggedIn = Boolean(currentUser);
+  const isFollowing = user?.is_following ?? false;
+
+  // KOL profile linked to this user
+  const kolHandle = (user as any)?.kol_profile?.twitter_handle as string | undefined;
+  const kolStatus = (user as any)?.kol_profile?.status as string | undefined;
+
+  const {
+    data: postsData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: postsLoading,
+  } = useInfinitePostsByAuthor(username ?? '');
+
+  const { data: kolCalls, isLoading: callsLoading } = useKolRecommendations(kolHandle);
+
+  const allPosts = postsData?.pages.flatMap((p) => p.data ?? []) ?? [];
+
+  function handleFollowClick() {
+    if (isFollowing) {
+      setShowUnfollowModal(true);
+    } else {
+      follow.mutate();
+    }
+  }
+
+  function handleUnfollowConfirm() {
+    unfollow.mutate(undefined, { onSuccess: () => setShowUnfollowModal(false) });
+  }
 
   if (isLoading) {
     return (
@@ -43,16 +143,28 @@ export function ProfilePage() {
     );
   }
 
+  const showCalls = kolHandle || user.role === 'expert';
+
   return (
     <AppLayout>
+      {/* Back nav */}
+      <Link
+        to="/feed"
+        className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors mb-4"
+      >
+        <ArrowLeft size={14} />
+        Back
+      </Link>
+
+      {/* Profile card */}
       <Card noPadding className="overflow-hidden">
         {/* Banner */}
-        <div className="h-20 bg-gradient-to-r from-[var(--color-bg-elevated)] to-[var(--color-bg-subtle)]" />
+        <div className="h-24 bg-gradient-to-r from-[var(--color-bg-elevated)] to-[var(--color-bg-subtle)]" />
 
         {/* Avatar + action row */}
-        <div className="px-5 pb-4 -mt-8">
-          <div className="flex items-end justify-between gap-4">
-            <div className="w-16 h-16 rounded-full border-4 border-[var(--color-bg-surface)] bg-[var(--color-bg-elevated)] flex items-center justify-center overflow-hidden">
+        <div className="px-5 pb-5 -mt-8">
+          <div className="flex items-end justify-between gap-4 flex-wrap">
+            <div className="w-16 h-16 rounded-full border-4 border-[var(--color-bg-surface)] bg-[var(--color-bg-elevated)] flex items-center justify-center overflow-hidden shrink-0">
               {user.avatar_url ? (
                 <img src={user.avatar_url} alt={user.display_name} className="w-full h-full object-cover" />
               ) : (
@@ -62,14 +174,42 @@ export function ProfilePage() {
               )}
             </div>
 
-            {isOwnProfile && (
-              <Link to="/profile/me/edit">
-                <Button variant="secondary" size="sm">
-                  <Edit2 size={14} />
-                  Edit profile
+            <div className="flex items-center gap-2 flex-wrap">
+              {isOwnProfile ? (
+                <Link to="/profile/me/edit">
+                  <Button variant="secondary" size="sm">
+                    <Edit2 size={14} />
+                    Edit profile
+                  </Button>
+                </Link>
+              ) : isLoggedIn ? (
+                <Button
+                  variant={isFollowing ? 'secondary' : 'primary'}
+                  size="sm"
+                  onClick={handleFollowClick}
+                  loading={follow.isPending || unfollow.isPending}
+                >
+                  {isFollowing ? (
+                    <>
+                      <UserCheck size={14} />
+                      Following
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={14} />
+                      Follow
+                    </>
+                  )}
                 </Button>
-              </Link>
-            )}
+              ) : (
+                <Link to="/login">
+                  <Button variant="primary" size="sm">
+                    <UserPlus size={14} />
+                    Follow
+                  </Button>
+                </Link>
+              )}
+            </div>
           </div>
 
           {/* Name + role */}
@@ -81,10 +221,29 @@ export function ProfilePage() {
               <Badge variant={user.role === 'expert' ? 'accent' : 'default'}>
                 {user.role === 'expert' ? 'Expert' : 'Investor'}
               </Badge>
+              {kolStatus === 'claimed' && (
+                <Badge variant="info">Verified KOL</Badge>
+              )}
             </div>
             <p className="text-sm text-[var(--color-text-tertiary)] font-mono mt-0.5">
               @{user.username}
             </p>
+          </div>
+
+          {/* Follower counts */}
+          <div className="flex items-center gap-4 mt-3">
+            <span className="text-sm text-[var(--color-text-secondary)]">
+              <span className="font-semibold text-[var(--color-text-primary)]">
+                {user.follower_count ?? 0}
+              </span>{' '}
+              followers
+            </span>
+            <span className="text-sm text-[var(--color-text-secondary)]">
+              <span className="font-semibold text-[var(--color-text-primary)]">
+                {user.following_count ?? 0}
+              </span>{' '}
+              following
+            </span>
           </div>
 
           {/* Bio */}
@@ -113,6 +272,17 @@ export function ProfilePage() {
                 {user.website.replace(/^https?:\/\//, '')}
               </a>
             )}
+            {kolHandle && (
+              <a
+                href={`https://x.com/${kolHandle}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs text-[var(--color-info)] hover:underline"
+              >
+                <ExternalLink size={12} />
+                @{kolHandle}
+              </a>
+            )}
             <span className="flex items-center gap-1.5 text-xs text-[var(--color-text-tertiary)]">
               <Calendar size={12} />
               Joined {formatJoinDate(user.created_at)}
@@ -121,32 +291,144 @@ export function ProfilePage() {
         </div>
       </Card>
 
-      {/* Placeholder for future posts/stats tabs */}
-      <div className="mt-4 flex flex-col gap-4">
-        <div className="flex items-center gap-4 border-b border-[var(--color-border)] pb-3">
-          <button className="text-sm font-medium text-[var(--color-accent)] border-b-2 border-[var(--color-accent)] pb-2.5 -mb-3">
-            Posts
+      {/* Tabs */}
+      <div className="mt-6 flex items-center gap-1 border-b border-[var(--color-border)]">
+        <button
+          onClick={() => setActiveTab('posts')}
+          className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === 'posts'
+              ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+              : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+          }`}
+        >
+          Posts
+        </button>
+        {showCalls && (
+          <button
+            onClick={() => setActiveTab('calls')}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              activeTab === 'calls'
+                ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+            }`}
+          >
+            <TrendingUp size={13} />
+            Recommendations
           </button>
-          {user.role === 'expert' && (
-            <button className="text-sm font-medium text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors pb-2.5 -mb-3">
-              Trade Calls
-            </button>
-          )}
-        </div>
-
-        <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-[var(--color-border)] rounded-lg">
-          <p className="text-sm text-[var(--color-text-tertiary)]">
-            {isOwnProfile ? "You haven't published any posts yet." : 'No posts yet.'}
-          </p>
-          {isOwnProfile && (
-            <Link to="/posts/new" className="mt-3">
-              <Button variant="primary" size="sm">
-                Create your first post
-              </Button>
-            </Link>
-          )}
-        </div>
+        )}
       </div>
+
+      {/* Posts tab */}
+      {activeTab === 'posts' && (
+        <div className="mt-4 flex flex-col gap-4">
+          {postsLoading && (
+            <div className="flex flex-col gap-4">
+              {[1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="h-40 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)] animate-pulse"
+                />
+              ))}
+            </div>
+          )}
+
+          {!postsLoading && allPosts.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-[var(--color-border)] rounded-lg">
+              <p className="text-sm text-[var(--color-text-tertiary)]">
+                {isOwnProfile ? "You haven't published any posts yet." : 'No posts yet.'}
+              </p>
+              {isOwnProfile && (
+                <Link to="/posts/new" className="mt-3">
+                  <Button variant="primary" size="sm">Create your first post</Button>
+                </Link>
+              )}
+            </div>
+          )}
+
+          {allPosts.map((post) => (
+            <PostCard key={post.id} post={post} />
+          ))}
+
+          {hasNextPage && (
+            <div className="flex justify-center mt-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void fetchNextPage()}
+                loading={isFetchingNextPage}
+              >
+                Load more
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Recommendations tab */}
+      {activeTab === 'calls' && showCalls && (
+        <div className="mt-4 flex flex-col gap-3">
+          {callsLoading && (
+            <div className="flex flex-col gap-3">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="h-14 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)] animate-pulse"
+                />
+              ))}
+            </div>
+          )}
+
+          {!callsLoading && (!kolCalls || kolCalls.length === 0) && (
+            <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-[var(--color-border)] rounded-lg">
+              <TrendingUp size={28} className="text-[var(--color-text-tertiary)] mb-2" />
+              <p className="text-sm text-[var(--color-text-tertiary)]">No recommendations tracked yet.</p>
+            </div>
+          )}
+
+          {kolCalls && kolCalls.length > 0 && (
+            <Card noPadding className="overflow-hidden">
+              {kolCalls.map((call, i) => (
+                <div
+                  key={call.id}
+                  className={`flex items-center justify-between px-4 py-3 ${
+                    i < kolCalls.length - 1 ? 'border-b border-[var(--color-border)]' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <DirectionBadge direction={call.direction} />
+                    <span className="font-mono text-sm font-semibold text-[var(--color-text-primary)] uppercase tracking-wide">
+                      {call.ticker}
+                    </span>
+                    {call.conviction && (
+                      <span className="text-xs text-[var(--color-text-tertiary)] capitalize">
+                        {call.conviction.toLowerCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-[var(--color-text-tertiary)]">
+                      {timeAgo(call.posted_at)}
+                    </span>
+                    <Badge variant="default" className="text-xs">Social</Badge>
+                  </div>
+                </div>
+              ))}
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Unfollow confirmation modal */}
+      {showUnfollowModal && (
+        <ConfirmModal
+          title={`Unfollow @${username}?`}
+          message={`You'll stop seeing their posts in your Followed feed. You can always follow them again.`}
+          confirmLabel="Unfollow"
+          onConfirm={handleUnfollowConfirm}
+          onCancel={() => setShowUnfollowModal(false)}
+          isLoading={unfollow.isPending}
+        />
+      )}
     </AppLayout>
   );
 }

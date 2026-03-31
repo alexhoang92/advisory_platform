@@ -31,6 +31,24 @@ export interface User {
   stripe_account_id: string | null;
   created_at: string; // ISO 8601
   updated_at: string; // ISO 8601
+  // Profile enrichment (present when fetching a user profile)
+  follower_count?: number;
+  following_count?: number;
+  is_following?: boolean;
+  kol_profile?: KolProfileSummary | null;
+}
+
+export interface KolProfileSummary {
+  id: string;
+  kol_id: number;
+  twitter_handle: string;
+  display_name: string;
+  avatar_url: string | null;
+  bio: string | null;
+  followers_count: number;
+  content_type: string | null;
+  profile_url: string | null;
+  status: 'unclaimed' | 'claimed' | 'rejected';
 }
 
 export interface ExpertProfile {

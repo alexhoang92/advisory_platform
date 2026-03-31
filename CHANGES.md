@@ -2,6 +2,59 @@
 
 ---
 
+## 2026-03-31 — Expert profiles, follow system, KOL data pipeline fix (branch: KOL_scraper_clone)
+
+### Added
+
+**Backend**
+- `POST /api/v1/users/:username/follow` — follow a user (auth required, 409 if already following)
+- `DELETE /api/v1/users/:username/follow` — unfollow a user (auth required)
+- `GET /api/v1/users/:username` now uses OptionalJwtGuard; returns `follower_count`, `following_count`, `is_following`, and `kol_profile` in response
+- `GET /api/v1/posts?author=:username` — new filter to fetch posts by a specific user
+- `GET /api/v1/kol-profiles/:handle/recommendations?limit=N` — live social recommendations per KOL handle from the KOL-tracker Neon DB
+- `KolService.getRecommendationsByHandle()` — per-KOL SQL query on the recommendations table
+- `scripts/seed_kol_recommendations.py` — dev seed: 278 realistic recommendations + price snapshots across 10 KOLs with per-KOL win rate biases
+
+**Shared types (`packages/shared/src/types/index.ts`)**
+- `User` extended with `follower_count?`, `following_count?`, `is_following?`, `kol_profile?`
+- New `KolProfileSummary` interface
+
+**Frontend**
+- `hooks/useFollow.ts` — follow/unfollow mutations with optimistic cache updates
+- `hooks/usePosts.ts` — added `useInfinitePostsByAuthor(username)`
+- `components/ui/ConfirmModal.tsx` — reusable confirmation dialog
+- `pages/ProfilePage.tsx` — full rebuild: follower/following counts, Follow/Unfollow button with confirm dialog, Posts tab (infinite scroll), Recommendations tab (live KOL calls), Verified KOL badge, Twitter/X link, back button
+- `pages/PostDetailPage.tsx` — Follow/Unfollow button beside author name
+
+### Fixed
+
+**KOL data pipeline**
+- Leaderboard returned empty — `JOIN recommendations` excluded KOLs with 0 calls; changed to `LEFT JOIN`
+- Top opportunities price formula inverted: `(ps0 - ps7) / ps7` → `(ps7 - ps0) / ps0`
+- `KolLeaderboard` and hero TopExpertsBox show "Tracking…" instead of "0%" when no calls yet
+
+### Changed
+
+**Leaderboard ranking**
+- Minimum 20 calls required (`HAVING COUNT(r.id) >= 20`) — KOLs below threshold excluded
+- Sorted by `win_rate DESC` (% correct calls), `correct_calls` as tiebreaker — was sorted by total calls
+- Removed client-side qualified/unqualified split; enforced in SQL
+
+**Hero section — all 3 boxes carousel-ified**
+- Each box shows one item at a time, auto-cycles (3–3.5 s), clickable dots + ticker tape
+- Most Credible Experts: rank, name, win rate large, avg return sentence
+- Top Buying Opportunities: ticker, BUY badge, 7d change %, scaled buy-volume bar
+
+**Feed page UI**
+- Removed user profile card, New Post card, About Hamilton card from right panel
+- KolLeaderboard remains in right panel
+- Hero section moved to `AppLayout` `topSlot` — full available width, no more text wrapping
+- Floating FAB (green circle, pen icon, `bottom-6 right-6`) replaces in-panel New Post button
+- `AppLayout` extended with optional `topSlot` prop
+- Hero card header fonts reduced one step to prevent wrapping at narrower widths
+
+---
+
 ## 2026-03-31 — Post interactions, feed filters, image upload fix (branch: KOL_scraper_clone)
 
 ### Fixed

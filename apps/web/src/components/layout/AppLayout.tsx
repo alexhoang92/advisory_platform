@@ -4,9 +4,11 @@ import { Sidebar } from './Sidebar';
 interface AppLayoutProps {
   children: React.ReactNode;
   rightPanel?: React.ReactNode;
+  /** Renders at full available width above the constrained feed column */
+  topSlot?: React.ReactNode;
 }
 
-export function AppLayout({ children, rightPanel }: AppLayoutProps) {
+export function AppLayout({ children, rightPanel, topSlot }: AppLayoutProps) {
   return (
     <div className="h-screen flex bg-[var(--color-bg-base)] overflow-hidden">
       {/* Left sidebar — fixed 240px */}
@@ -16,6 +18,11 @@ export function AppLayout({ children, rightPanel }: AppLayoutProps) {
       <div className="flex-1 flex min-w-0 overflow-hidden">
         {/* Center feed */}
         <main className="flex-1 overflow-y-auto">
+          {topSlot && (
+            <div className="px-6 pt-6 pb-0">
+              {topSlot}
+            </div>
+          )}
           <div className="max-w-2xl mx-auto px-4 py-6">
             {children}
           </div>

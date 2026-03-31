@@ -112,25 +112,33 @@ export function KolLeaderboard() {
 
               {/* Win rate + avg return */}
               <div className="text-right flex-shrink-0">
-                <p
-                  className={`text-xs font-mono font-bold leading-tight ${
-                    kol.win_rate >= 60
-                      ? 'text-green-400'
-                      : kol.win_rate >= 50
-                        ? 'text-yellow-400'
-                        : 'text-red-400'
-                  }`}
-                >
-                  {kol.win_rate.toFixed(0)}%
-                </p>
-                <p
-                  className={`text-[10px] font-mono leading-tight ${
-                    kol.avg_return >= 0 ? 'text-green-400' : 'text-red-400'
-                  }`}
-                >
-                  {kol.avg_return >= 0 ? '+' : ''}
-                  {kol.avg_return.toFixed(1)}%
-                </p>
+                {kol.total_calls === 0 ? (
+                  <p className="text-xs font-mono text-[var(--color-text-tertiary)] leading-tight">
+                    Tracking…
+                  </p>
+                ) : (
+                  <>
+                    <p
+                      className={`text-xs font-mono font-bold leading-tight ${
+                        kol.win_rate >= 60
+                          ? 'text-green-400'
+                          : kol.win_rate >= 50
+                            ? 'text-yellow-400'
+                            : 'text-red-400'
+                      }`}
+                    >
+                      {kol.win_rate.toFixed(0)}%
+                    </p>
+                    <p
+                      className={`text-[10px] font-mono leading-tight ${
+                        kol.avg_return >= 0 ? 'text-green-400' : 'text-red-400'
+                      }`}
+                    >
+                      {kol.avg_return >= 0 ? '+' : ''}
+                      {kol.avg_return.toFixed(1)}%
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           ))}

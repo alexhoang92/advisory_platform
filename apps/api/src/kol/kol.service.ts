@@ -118,7 +118,7 @@ export class KolService implements OnModuleInit, OnModuleDestroy {
              END
            ), 0)::float AS avg_return_pct
          FROM kols k
-         JOIN recommendations r
+         LEFT JOIN recommendations r
            ON r.kol_id = k.id
            AND r.direction IN ('BUY', 'SELL', 'LONG', 'SHORT')
          LEFT JOIN price_snapshots ps0
@@ -127,12 +127,12 @@ export class KolService implements OnModuleInit, OnModuleDestroy {
            ON ps7.recommendation_id = r.id AND ps7.snapshot_type = 'T7D'
          WHERE k.is_active = true
          GROUP BY k.id, k.handle, k.display_name, k.profile_url, k.content_type
-         HAVING COUNT(r.id) > 0
-         ORDER BY win_rate DESC NULLS LAST
+         HAVING COUNT(r.id) >= 20
+         ORDER BY win_rate DESC NULLS LAST, correct_calls DESC
          LIMIT 10`,
       );
 
-      const result: KolLeaderboardEntry[] = rows.map((r) => ({
+      return rows.map((r) => ({
         id: r.id,
         handle: r.handle,
         display_name: r.display_name ?? r.handle,
@@ -142,13 +142,8 @@ export class KolService implements OnModuleInit, OnModuleDestroy {
         correct_calls: r.correct_calls,
         win_rate: Math.round(r.win_rate * 10) / 10,
         avg_return: Math.round(r.avg_return_pct * 100) / 100,
-        qualified: r.total_calls >= 10,
+        qualified: true, // all returned entries meet the 20-call minimum
       }));
-
-      const qualified = result.filter((k) => k.qualified);
-      const unqualified = result.filter((k) => !k.qualified).sort((a, b) => b.avg_return - a.avg_return);
-
-      return [...qualified, ...unqualified].slice(0, 10);
     } catch (err) {
       console.error('[KolService] leaderboard query failed:', err);
       return [];
@@ -168,8 +163,8 @@ export class KolService implements OnModuleInit, OnModuleDestroy {
            COUNT(*)::int AS buy_count,
            AVG(
              CASE
-               WHEN ps7.price > 0
-               THEN ((ps0.price - ps7.price) / ps7.price) * 100
+               WHEN ps0.price > 0 AND ps7.price IS NOT NULL
+               THEN ((ps7.price - ps0.price) / ps0.price) * 100
                ELSE NULL
              END
            )::float AS avg_change_7d
@@ -242,6 +237,58 @@ export class KolService implements OnModuleInit, OnModuleDestroy {
       }));
     } catch (err) {
       console.error('[KolService] recent-calls query failed:', err);
+      return [];
+    }
+  }
+
+  /** Returns recent recommendations for a specific KOL by Twitter handle. */
+  async getRecommendationsByHandle(handle: string, limit = 20): Promise<RecentCall[]> {
+    if (!this.pool) return [];
+    try {
+      const { rows } = await this.pool.query<{
+        id: number;
+        kol_handle: string;
+        display_name: string | null;
+        ticker: string;
+        direction: string;
+        conviction: string | null;
+        target_price: number | null;
+        posted_at: Date;
+      }>(
+        `SELECT
+           r.id,
+           k.handle AS kol_handle,
+           k.display_name,
+           r.ticker,
+           r.direction,
+           r.conviction,
+           r.target_price,
+           r.posted_at
+         FROM recommendations r
+         JOIN kols k ON k.id = r.kol_id
+         WHERE LOWER(k.handle) = LOWER($1)
+           AND k.is_active = true
+         ORDER BY r.posted_at DESC
+         LIMIT $2`,
+        [handle, limit],
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        kol_handle: r.kol_handle,
+        display_name: r.display_name ?? r.kol_handle,
+        ticker: r.ticker,
+        direction: r.direction,
+        conviction: r.conviction,
+        target_price: r.target_price,
+        posted_at:
+          r.posted_at instanceof Date
+            ? r.posted_at.toISOString()
+            : r.posted_at
+              ? String(r.posted_at)
+              : null,
+      }));
+    } catch (err) {
+      console.error('[KolService] getRecommendationsByHandle failed:', err);
       return [];
     }
   }

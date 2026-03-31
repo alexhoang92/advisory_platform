@@ -475,3 +475,159 @@ Task:
 - Top Opportunities time window extended from 7 days → 90 days.
 - Recent Calls: `posted_at` handled as nullable; `timeAgo()` shows `"recently"` for null/invalid timestamps.
 
+---
+# New task 31-Mar-2026 round 2
+
+Objective
+
+# An “Expert profile” pages that user for both normal users and experts 
+
+# A follow system that allow users to follow each others, follow experts view post of the account that they followed in feed followed filter section
+
+Detail tasks
+
+# “Expert Profile” Page
+
+## 🎯 Goal
+
+Display detailed information about a financial expert and their activity.
+
+- --
+
+## 📦 Available Data
+
+- `name`
+- `description` (trading style)
+- `recent_recommendations` from social tracking
+- `recent_posts` in Hammilton platform
+- Profile type (claimed, un_claimed)
+
+## ❌ Exclude (Do NOT include yet)
+
+- Success rate
+- Average return
+- Rating distribution
+- Rankings
+- Sector / GEO breakdown
+- Any percentage-based metrics
+- --
+
+## 🧱 UI Structure
+
+### Header
+
+- Back button
+- Expert name
+- --
+
+### Profile Section
+
+- Avatar (placeholder)
+- Name (prominent)
+- Description (trading style summary)
+- --
+
+### Section: “Recent Recommendations”
+
+List of recent asset calls.
+
+Each item includes:
+
+- Asset name / ticker
+- Recommendation type (Buy / Sell / Hold if available)
+- Optional timestamp (if available)
+- source tag (social or “exclusive on Hamilton”)
+
+### Optional Section: “About Strategy”
+
+- Expanded paragraph using description
+- --
+
+## 📱 Mobile Optimization
+
+- Single column layout
+- Large tap areas
+- Smooth vertical scrolling
+- --
+
+# Follow system
+
+- follow button on each profile pages and post detail pages show when user click to expert profiles or post detail
+- Followed posts integrated into feed with current built filters
+- Unfollow click and confirm unfollow box (only for unfollow use case)
+
+# Expected Output
+
+- Clean, production-ready UI
+- Scalable architecture for future data expansion
+
+---
+
+## _Changes 31-Mar-2026 round 2:
+
+### 1. Follow system — backend + frontend
+- `POST /api/v1/users/:username/follow` — follow a user (auth required, no-op if already following)
+- `DELETE /api/v1/users/:username/follow` — unfollow a user (auth required)
+- `GET /api/v1/users/:username` now uses OptionalJwtGuard so it returns `is_following: true/false` for authenticated callers
+- `findByUsername` returns `follower_count`, `following_count`, `is_following`, and linked `kol_profile` in the response
+- New `useFollow(username)` hook: optimistic cache updates for follow/unfollow mutations
+- Unfollow requires confirmation via `ConfirmModal` component
+
+### 2. Enhanced ProfilePage
+- Shows **follower / following counts** in the profile header
+- **Follow / Unfollow button** for non-own profiles (redirects to login if unauthenticated)
+- `Posts` tab: loads actual posts by that author via `GET /posts?author=:username`
+- `Recommendations` tab (experts with linked KOL profile): fetches live social recommendations from KOL-tracker DB via `GET /kol-profiles/:handle/recommendations`
+- **Verified KOL** badge shown when the user has claimed a KOL profile
+- Twitter/X handle link shown for claimed KOL profiles
+- Back button added for easy navigation
+
+### 3. Follow button on PostDetailPage
+- Follow / Unfollow button shown beside the author name on post detail pages
+- Fetches author profile to get live `is_following` state
+- Instant optimistic cache update — no full page reload needed
+
+### 4. Posts by author filter
+- `GET /api/v1/posts?author=:username` now returns posts filtered to a specific user
+- Works independently of feed filter (latest/followed/trending)
+
+### 5. KOL recommendations per profile
+- `GET /api/v1/kol-profiles/:handle/recommendations` — new endpoint returning recent social calls for a specific KOL handle
+- Backed by `KolService.getRecommendationsByHandle()` querying the KOL-tracker Neon DB
+
+### 6. Shared types
+- `User` extended with `follower_count?`, `following_count?`, `is_following?`, `kol_profile?`
+- New `KolProfileSummary` interface added to `@hamilton/shared`
+
+### 7. New UI component
+- `ConfirmModal` — reusable modal dialog used for the unfollow confirmation flow
+
+---
+
+## _Changes 31-Mar-2026 round 3:
+
+### 1. Leaderboard ranking — corrected logic
+- **Minimum 20 calls** required to appear (`HAVING COUNT(r.id) >= 20`); KOLs below threshold excluded entirely
+- **Sorted by `win_rate DESC`** (percentage of correct calls), `correct_calls` as tiebreaker — was previously sorted by total call count
+- Removed JS-side qualified/unqualified split; now enforced entirely in SQL
+- `qualified` field always `true` for returned entries (filter already applied)
+
+### 2. KOL data pipeline fixes
+- Leaderboard was empty — `JOIN recommendations` inner-joined out all KOLs with 0 calls; changed to `LEFT JOIN` with `HAVING` for the 20-call cutoff
+- Top opportunities price-change formula was inverted (`(ps0−ps7)/ps7`) → corrected to `(ps7−ps0)/ps0`
+- `KolLeaderboard` and hero TopExpertsBox show "Tracking…" instead of "0%" when no calls recorded yet
+- Created `scripts/seed_kol_recommendations.py` — dev seed script injecting 278 realistic recommendations + price snapshots for 10 KOLs with realistic win-rate biases
+
+### 3. Hero section — all 3 boxes carousel-ified
+- Most Credible Experts and Top Buying Opportunities now match the Live Recommendations carousel pattern
+- Each box: one card at a time, auto-cycles every 3–3.5 s, clickable dot indicators, scrolling ticker tape
+- Most Credible Experts card: rank (colour-coded gold/silver/bronze), name, call count, large win rate %, avg return sentence
+- Top Buying Opportunities card: ticker + BUY badge, 7d price change %, scaled buy-volume progress bar
+
+### 4. Feed page UI overhaul
+- Removed user profile card, "New Post" card, and "About Hamilton" card from right panel
+- KolLeaderboard remains in right panel
+- **Floating FAB**: green circular button fixed `bottom-6 right-6`, pen icon, links to `/posts/new`
+- **Hero section at full width**: moved to new `AppLayout.topSlot` — renders across the full center column width above the `max-w-2xl` feed container; eliminates text wrapping in market pulse cards
+- `AppLayout` extended with optional `topSlot?: React.ReactNode` prop
+- Hero card header fonts reduced one step (`text-sm`→`text-xs`, `text-[10px]`→`text-[9px]`); LIVE badge also shrunk to prevent wrapping

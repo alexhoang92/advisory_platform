@@ -92,17 +92,29 @@ export class PostsService {
     requestingUserId?: string,
     ticker?: string,
     filter: 'latest' | 'followed' | 'trending' = 'latest',
+    authorUsername?: string,
   ): Promise<ApiResponse<DomainPost[]>> {
     const take = Math.min(limit, 100);
 
+    // Resolve author username to ID if provided
+    let authorId: string | undefined;
+    if (authorUsername) {
+      const author = await this.prisma.user.findUnique({
+        where: { username: authorUsername },
+        select: { id: true },
+      });
+      if (!author) return { data: [], meta: { has_more: false, cursor: null }, error: null };
+      authorId = author.id;
+    }
+
     // For trending: compute top post IDs by engagement score in last 48h
-    if (filter === 'trending') {
+    if (filter === 'trending' && !authorId) {
       return this.findTrending(take, requestingUserId, ticker);
     }
 
     // For followed filter: restrict to posts from followed users
     let followedAuthorIds: string[] | undefined;
-    if (filter === 'followed' && requestingUserId) {
+    if (filter === 'followed' && requestingUserId && !authorId) {
       const follows = await this.prisma.follow.findMany({
         where: { follower_id: requestingUserId },
         select: { following_id: true },
@@ -114,6 +126,7 @@ export class PostsService {
       visibility: { not: 'subscribers_only' },
       ...(ticker && { ticker_tags: { some: { ticker: ticker.toUpperCase() } } }),
       ...(followedAuthorIds !== undefined && { author_id: { in: followedAuthorIds } }),
+      ...(authorId && { author_id: authorId }),
     };
 
     const posts = await this.prisma.post.findMany({

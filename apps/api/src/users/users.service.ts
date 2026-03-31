@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User as DomainUser } from '@hamilton/shared';
@@ -48,18 +48,68 @@ export class UsersService {
     return users as Array<Pick<DomainUser, 'id' | 'username' | 'display_name' | 'avatar_url'>>;
   }
 
-  async findByUsername(username: string): Promise<DomainUser & { expert_profile?: unknown }> {
+  async findByUsername(username: string, requestingUserId?: string): Promise<DomainUser> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const user = await (this.prisma.user.findUnique as (args: any) => Promise<(PrismaUser & { expert_profile?: unknown }) | null>)({
+    const user = await (this.prisma.user.findUnique as (args: any) => Promise<(PrismaUser & {
+      expert_profile?: unknown;
+      claimed_kol_profile?: unknown;
+      _count: { follows_received: number; follows_given: number };
+    }) | null>)({
       where: { username },
-      include: { expert_profile: true },
+      include: {
+        expert_profile: true,
+        claimed_kol_profile: true,
+        _count: {
+          select: {
+            follows_received: true,
+            follows_given: true,
+          },
+        },
+      },
     });
 
     if (!user) {
       throw new NotFoundException(`User @${username} not found`);
     }
 
-    return this.serializeUser(user);
+    let is_following = false;
+    if (requestingUserId && requestingUserId !== user.id) {
+      const follow = await this.prisma.follow.findUnique({
+        where: {
+          follower_id_following_id: {
+            follower_id: requestingUserId,
+            following_id: user.id,
+          },
+        },
+      });
+      is_following = follow !== null;
+    }
+
+    return this.serializeUser(user, is_following);
+  }
+
+  async follow(followerId: string, targetUsername: string): Promise<void> {
+    const target = await this.prisma.user.findUnique({ where: { username: targetUsername } });
+    if (!target) throw new NotFoundException(`User @${targetUsername} not found`);
+    if (target.id === followerId) throw new BadRequestException('Cannot follow yourself');
+
+    try {
+      await this.prisma.follow.create({
+        data: { follower_id: followerId, following_id: target.id },
+      });
+    } catch {
+      // Unique constraint violation = already following, treat as no-op
+      throw new ConflictException('Already following this user');
+    }
+  }
+
+  async unfollow(followerId: string, targetUsername: string): Promise<void> {
+    const target = await this.prisma.user.findUnique({ where: { username: targetUsername } });
+    if (!target) throw new NotFoundException(`User @${targetUsername} not found`);
+
+    await this.prisma.follow.deleteMany({
+      where: { follower_id: followerId, following_id: target.id },
+    });
   }
 
   async updateMe(userId: string, dto: UpdateUserDto): Promise<DomainUser> {
@@ -71,12 +121,17 @@ export class UsersService {
     if (dto.avatar_url !== undefined) updateData['avatar_url'] = dto.avatar_url;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const user = await (this.prisma.user.update as (args: any) => Promise<PrismaUser>)({
+    const user = await (this.prisma.user.update as (args: any) => Promise<any>)({
       where: { id: userId },
       data: updateData,
-    });
+      include: {
+        _count: {
+          select: { follows_received: true, follows_given: true },
+        },
+      },
+    }) as PrismaUser & { _count: { follows_received: number; follows_given: number } };
 
-    return this.serializeUser(user);
+    return this.serializeUser(user, false);
   }
 
   async updatePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
@@ -101,15 +156,30 @@ export class UsersService {
     });
   }
 
-  private serializeUser(user: PrismaUser & { expert_profile?: unknown }): DomainUser & { expert_profile?: unknown } {
-    const { password_hash: _password, expert_profile, ...rest } = user;
+  private serializeUser(
+    user: PrismaUser & {
+      expert_profile?: unknown;
+      claimed_kol_profile?: unknown;
+      _count?: { follows_received: number; follows_given: number };
+    },
+    is_following: boolean,
+  ): DomainUser {
+    const { password_hash: _password, expert_profile, claimed_kol_profile, _count, ...rest } = user as PrismaUser & {
+      expert_profile?: unknown;
+      claimed_kol_profile?: unknown;
+      _count?: { follows_received: number; follows_given: number };
+    };
     void _password;
     return {
       ...rest,
       role: user.role as DomainUser['role'],
       created_at: user.created_at.toISOString(),
       updated_at: user.updated_at.toISOString(),
+      follower_count: _count?.follows_received ?? 0,
+      following_count: _count?.follows_given ?? 0,
+      is_following,
       ...(expert_profile !== undefined && { expert_profile }),
-    };
+      ...(claimed_kol_profile !== undefined && { kol_profile: claimed_kol_profile }),
+    } as DomainUser;
   }
 }
