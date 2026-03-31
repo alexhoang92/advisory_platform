@@ -12,6 +12,7 @@ export function useUser(username: string) {
       return response.data!;
     },
     enabled: Boolean(username),
+    retry: false,
   });
 }
 

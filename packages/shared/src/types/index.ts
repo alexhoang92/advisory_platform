@@ -46,9 +46,31 @@ export interface KolProfileSummary {
   avatar_url: string | null;
   bio: string | null;
   followers_count: number;
+  kol_followers_count: number;
   content_type: string | null;
   profile_url: string | null;
   status: 'unclaimed' | 'claimed' | 'rejected';
+  is_following: boolean;
+}
+
+export interface SocialHearingItem {
+  item_type: 'social_hearing';
+  id: number;
+  kol_handle: string;
+  display_name: string;
+  ticker: string;
+  direction: string;
+  conviction: string | null;
+  target_price: number | null;
+  posted_at: string | null;
+  kol_profile: {
+    id: string;
+    twitter_handle: string;
+    display_name: string;
+    avatar_url: string | null;
+    status: string;
+    kol_followers_count: number;
+  };
 }
 
 export interface ExpertProfile {

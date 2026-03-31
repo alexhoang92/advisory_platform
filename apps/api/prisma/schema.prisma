@@ -114,6 +114,7 @@ model User {
   post_saves         PostSave[]
   post_replies       PostReply[]
   claimed_kol_profile UnclaimedKolProfile? @relation("ClaimedKolProfile")
+  kol_follows         KolFollow[]          @relation("KolFollows")
 
   @@map("users")
 }
@@ -355,9 +356,24 @@ model UnclaimedKolProfile {
   created_at      DateTime         @default(now())
   updated_at      DateTime         @updatedAt
 
-  claimed_user User? @relation("ClaimedKolProfile", fields: [claimed_user_id], references: [id], onDelete: SetNull)
+  claimed_user  User?       @relation("ClaimedKolProfile", fields: [claimed_user_id], references: [id], onDelete: SetNull)
+  kol_followers KolFollow[] @relation("KolFollowers")
 
   @@index([twitter_handle])
   @@index([status])
   @@map("unclaimed_kol_profiles")
+}
+
+model KolFollow {
+  id             String              @id @default(cuid())
+  follower_id    String
+  kol_profile_id String
+  created_at     DateTime            @default(now())
+
+  follower    User                @relation("KolFollows", fields: [follower_id], references: [id], onDelete: Cascade)
+  kol_profile UnclaimedKolProfile @relation("KolFollowers", fields: [kol_profile_id], references: [id], onDelete: Cascade)
+
+  @@unique([follower_id, kol_profile_id])
+  @@index([follower_id])
+  @@map("kol_follows")
 }

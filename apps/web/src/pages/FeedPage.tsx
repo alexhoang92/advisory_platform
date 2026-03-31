@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import { PenSquare, RefreshCw, Users, TrendingUp, Clock } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { PostCard } from '../components/posts/PostCard';
+import { SocialHearingCard } from '../components/feed/SocialHearingCard';
 import { Button } from '../components/ui/Button';
-import { useInfinitePosts, type FeedFilter } from '../hooks/usePosts';
+import { useFeed, type FeedItem } from '../hooks/useFeed';
+import type { FeedFilter } from '../hooks/usePosts';
 import { KolLeaderboard } from '../components/kol/KolLeaderboard';
 import { HeroSection } from '../components/kol/HeroSection';
 
@@ -14,10 +16,25 @@ const FILTER_TABS: { key: FeedFilter; label: string; icon: React.ReactNode }[] =
   { key: 'trending', label: 'Trending', icon: <TrendingUp size={13} /> },
 ];
 
+function FeedItemRenderer({ item }: { item: FeedItem }) {
+  if (item.item_type === 'post') {
+    return <PostCard post={item.data} />;
+  }
+  return <SocialHearingCard item={item} />;
+}
+
 export function FeedPage() {
   const [filter, setFilter] = useState<FeedFilter>('latest');
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, refetch } =
-    useInfinitePosts(filter);
+  const {
+    feedItems,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    refetch,
+    isEmptyFollowed,
+  } = useFeed(filter);
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
@@ -38,9 +55,6 @@ export function FeedPage() {
     observer.observe(el);
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  const allPosts = data?.pages.flatMap((page) => page.data ?? []) ?? [];
-  const isEmptyFollowed = filter === 'followed' && data?.pages[0]?.meta?.empty_followed === true;
 
   return (
     <AppLayout
@@ -102,8 +116,8 @@ export function FeedPage() {
         </div>
       )}
 
-      {/* Empty — no posts */}
-      {!isLoading && !isError && !isEmptyFollowed && allPosts.length === 0 && (
+      {/* Empty — no items */}
+      {!isLoading && !isError && !isEmptyFollowed && feedItems.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-[var(--color-border)] rounded-lg">
           <p className="text-[var(--color-text-secondary)] mb-2">
             {filter === 'trending' ? 'No trending posts yet.' : 'No posts yet.'}
@@ -114,11 +128,14 @@ export function FeedPage() {
         </div>
       )}
 
-      {/* Posts */}
-      {allPosts.length > 0 && (
+      {/* Feed items */}
+      {feedItems.length > 0 && (
         <div className="flex flex-col gap-4">
-          {allPosts.map((post) => (
-            <PostCard key={post.id} post={post} />
+          {feedItems.map((item, i) => (
+            <FeedItemRenderer
+              key={item.item_type === 'post' ? `post-${item.data.id}` : `sh-${item.id}-${i}`}
+              item={item}
+            />
           ))}
         </div>
       )}
@@ -131,7 +148,7 @@ export function FeedPage() {
             Loading more...
           </div>
         )}
-        {!hasNextPage && allPosts.length > 0 && (
+        {!hasNextPage && feedItems.length > 0 && (
           <p className="text-xs text-[var(--color-text-tertiary)]">You&apos;ve reached the end.</p>
         )}
       </div>

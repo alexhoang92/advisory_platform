@@ -307,6 +307,59 @@ export class KolService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /** Returns recent recommendations for multiple KOL handles (batch). */
+  async getRecommendationsByHandles(handles: string[], limit = 5): Promise<RecentCall[]> {
+    if (!this.pool || handles.length === 0) return [];
+    try {
+      const lowerHandles = handles.map((h) => h.toLowerCase());
+      const { rows } = await this.pool.query<{
+        id: number;
+        kol_handle: string;
+        display_name: string | null;
+        ticker: string;
+        direction: string;
+        conviction: string | null;
+        target_price: number | null;
+        posted_at: Date;
+      }>(
+        `SELECT
+           r.id,
+           k.handle AS kol_handle,
+           k.display_name,
+           r.ticker,
+           r.direction,
+           r.conviction,
+           r.target_price,
+           r.posted_at
+         FROM recommendations r
+         JOIN kols k ON k.id = r.kol_id
+         WHERE LOWER(k.handle) = ANY($1)
+           AND k.is_active = true
+         ORDER BY r.posted_at DESC
+         LIMIT $2`,
+        [lowerHandles, limit * handles.length],
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        kol_handle: r.kol_handle,
+        display_name: r.display_name ?? r.kol_handle,
+        ticker: r.ticker,
+        direction: r.direction,
+        conviction: r.conviction,
+        target_price: r.target_price,
+        posted_at:
+          r.posted_at instanceof Date
+            ? r.posted_at.toISOString()
+            : r.posted_at
+              ? String(r.posted_at)
+              : null,
+      }));
+    } catch (err) {
+      console.error('[KolService] getRecommendationsByHandles failed:', err);
+      return [];
+    }
+  }
+
   /** Returns all KOLs for syncing into unclaimed_kol_profiles. */
   async getAllKols(): Promise<
     {

@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   TrendingUp,
   ExternalLink,
+  Users,
 } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { Card } from '../components/ui/Card';
@@ -19,6 +20,8 @@ import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { PostCard } from '../components/posts/PostCard';
 import { useUser } from '../hooks/useUser';
 import { useFollow } from '../hooks/useFollow';
+import { useKolProfile } from '../hooks/useKolProfile';
+import { useKolFollow } from '../hooks/useKolFollow';
 import { useInfinitePostsByAuthor } from '../hooks/usePosts';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../lib/api';
@@ -79,11 +82,259 @@ function useKolRecommendations(twitterHandle: string | null | undefined) {
   });
 }
 
-export function ProfilePage() {
-  const { username } = useParams<{ username: string }>();
+// ─── KOL Profile View (Unclaimed / Claimed KOL profiles) ─────────────────────
+
+function KolProfileView({ handle }: { handle: string }) {
   const currentUser = useAuthStore((s) => s.user);
-  const { data: user, isLoading, isError } = useUser(username ?? '');
-  const { follow, unfollow } = useFollow(username ?? '');
+  const isLoggedIn = Boolean(currentUser);
+  const { data: kolProfile, isLoading } = useKolProfile(handle);
+  const { follow, unfollow } = useKolFollow(handle);
+  const [showUnfollowModal, setShowUnfollowModal] = useState(false);
+  const { data: kolCalls, isLoading: callsLoading } = useKolRecommendations(handle);
+
+  const isFollowing = kolProfile?.is_following ?? false;
+
+  function handleFollowClick() {
+    if (isFollowing) {
+      setShowUnfollowModal(true);
+    } else {
+      follow.mutate();
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="animate-pulse flex flex-col gap-4">
+        <div className="h-40 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]" />
+        <div className="h-24 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]" />
+      </div>
+    );
+  }
+
+  if (!kolProfile) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <p className="text-[var(--color-text-secondary)] mb-2">Profile not found.</p>
+        <Link to="/feed">
+          <Button variant="secondary" size="sm">Back to Feed</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Profile card */}
+      <Card noPadding className="overflow-hidden">
+        {/* Banner */}
+        <div className="h-24 bg-gradient-to-r from-[var(--color-bg-elevated)] to-[var(--color-bg-subtle)]" />
+
+        <div className="px-5 pb-5 -mt-8">
+          {/* Avatar + actions */}
+          <div className="flex items-end justify-between gap-4 flex-wrap">
+            <div className="w-16 h-16 rounded-full border-4 border-[var(--color-bg-surface)] bg-[var(--color-bg-elevated)] flex items-center justify-center overflow-hidden shrink-0">
+              {kolProfile.avatar_url ? (
+                <img src={kolProfile.avatar_url} alt={kolProfile.display_name} className="w-full h-full object-cover" />
+              ) : (
+                <TrendingUp size={24} className="text-[var(--color-text-tertiary)]" />
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {isLoggedIn ? (
+                <Button
+                  variant={isFollowing ? 'secondary' : 'primary'}
+                  size="sm"
+                  onClick={handleFollowClick}
+                  loading={follow.isPending || unfollow.isPending}
+                >
+                  {isFollowing ? (
+                    <>
+                      <UserCheck size={14} />
+                      Following
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={14} />
+                      Follow
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Link to="/login">
+                  <Button variant="primary" size="sm">
+                    <UserPlus size={14} />
+                    Follow
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {/* Name + badges */}
+          <div className="mt-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="font-display font-bold text-xl text-[var(--color-text-primary)]">
+                {kolProfile.display_name}
+              </h1>
+              <Badge variant="accent">Expert</Badge>
+              {kolProfile.status === 'unclaimed' && (
+                <Badge variant="warning">Unclaimed</Badge>
+              )}
+              {kolProfile.status === 'claimed' && (
+                <Badge variant="info">Verified KOL</Badge>
+              )}
+            </div>
+            <p className="text-sm text-[var(--color-text-tertiary)] font-mono mt-0.5">
+              @{kolProfile.twitter_handle}
+            </p>
+          </div>
+
+          {/* Follower count */}
+          <div className="flex items-center gap-4 mt-3">
+            <span className="text-sm text-[var(--color-text-secondary)]">
+              <span className="font-semibold text-[var(--color-text-primary)]">
+                {kolProfile.kol_followers_count ?? 0}
+              </span>{' '}
+              followers on Hamilton
+            </span>
+            {kolProfile.followers_count > 0 && (
+              <span className="text-sm text-[var(--color-text-secondary)]">
+                <span className="font-semibold text-[var(--color-text-primary)]">
+                  {kolProfile.followers_count.toLocaleString()}
+                </span>{' '}
+                social followers
+              </span>
+            )}
+          </div>
+
+          {/* Bio */}
+          {kolProfile.bio && (
+            <p className="text-sm text-[var(--color-text-secondary)] mt-3 leading-relaxed">
+              {kolProfile.bio}
+            </p>
+          )}
+
+          {/* Links */}
+          <div className="flex flex-wrap gap-3 mt-3">
+            {kolProfile.profile_url && (
+              <a
+                href={kolProfile.profile_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs text-[var(--color-info)] hover:underline"
+              >
+                <ExternalLink size={12} />
+                @{kolProfile.twitter_handle} on X
+              </a>
+            )}
+            {kolProfile.content_type && (
+              <span className="flex items-center gap-1.5 text-xs text-[var(--color-text-tertiary)]">
+                <TrendingUp size={12} />
+                {kolProfile.content_type}
+              </span>
+            )}
+          </div>
+
+          {/* Unclaimed CTA */}
+          {kolProfile.status === 'unclaimed' && (
+            <div className="mt-4 px-3 py-2 rounded-lg bg-[#f5a62310] border border-[#f5a62330] text-xs text-[var(--color-warning)]">
+              This is a public profile sourced from social media. The expert hasn&apos;t joined Hamilton yet.{' '}
+              <Link to="/register" className="underline hover:text-[var(--color-text-primary)]">
+                Are you this expert? Claim your profile.
+              </Link>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Recommendations tab */}
+      <div className="mt-6 flex items-center gap-1 border-b border-[var(--color-border)]">
+        <div className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 border-[var(--color-accent)] text-[var(--color-accent)] -mb-px">
+          <TrendingUp size={13} />
+          Recommendations
+          <span className="text-[10px] ml-1 px-1.5 py-0.5 rounded bg-[#4a9eff18] text-[var(--color-info)] border border-[#4a9eff30]">
+            Social Hearing
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3">
+        {callsLoading && (
+          <div className="flex flex-col gap-3">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-14 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)] animate-pulse"
+              />
+            ))}
+          </div>
+        )}
+
+        {!callsLoading && (!kolCalls || kolCalls.length === 0) && (
+          <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-[var(--color-border)] rounded-lg">
+            <TrendingUp size={28} className="text-[var(--color-text-tertiary)] mb-2" />
+            <p className="text-sm text-[var(--color-text-tertiary)]">No recommendations tracked yet.</p>
+          </div>
+        )}
+
+        {kolCalls && kolCalls.length > 0 && (
+          <Card noPadding className="overflow-hidden">
+            {kolCalls.map((call, i) => (
+              <div
+                key={call.id}
+                className={`flex items-center justify-between px-4 py-3 ${
+                  i < kolCalls.length - 1 ? 'border-b border-[var(--color-border)]' : ''
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <DirectionBadge direction={call.direction} />
+                  <span className="font-mono text-sm font-semibold text-[var(--color-text-primary)] uppercase tracking-wide">
+                    {call.ticker}
+                  </span>
+                  {call.conviction && (
+                    <span className="text-xs text-[var(--color-text-tertiary)] capitalize">
+                      {call.conviction.toLowerCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-[var(--color-text-tertiary)]">
+                    {timeAgo(call.posted_at)}
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#4a9eff18] text-[var(--color-info)] border border-[#4a9eff30]">
+                    Social Hearing
+                  </span>
+                </div>
+              </div>
+            ))}
+          </Card>
+        )}
+      </div>
+
+      {/* Unfollow modal */}
+      {showUnfollowModal && (
+        <ConfirmModal
+          title={`Unfollow @${handle}?`}
+          message="You'll stop seeing their recommendations in your Followed feed."
+          confirmLabel="Unfollow"
+          onConfirm={() =>
+            unfollow.mutate(undefined, { onSuccess: () => setShowUnfollowModal(false) })
+          }
+          onCancel={() => setShowUnfollowModal(false)}
+          isLoading={unfollow.isPending}
+        />
+      )}
+    </>
+  );
+}
+
+// ─── Hamilton User Profile View ───────────────────────────────────────────────
+
+function HamiltonUserProfile({ username }: { username: string }) {
+  const currentUser = useAuthStore((s) => s.user);
+  const { data: user, isLoading, isError } = useUser(username);
+  const { follow, unfollow } = useFollow(username);
   const [showUnfollowModal, setShowUnfollowModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'posts' | 'calls'>('posts');
 
@@ -91,9 +342,8 @@ export function ProfilePage() {
   const isLoggedIn = Boolean(currentUser);
   const isFollowing = user?.is_following ?? false;
 
-  // KOL profile linked to this user
-  const kolHandle = (user as any)?.kol_profile?.twitter_handle as string | undefined;
-  const kolStatus = (user as any)?.kol_profile?.status as string | undefined;
+  const kolHandle = user?.kol_profile?.twitter_handle as string | undefined;
+  const kolStatus = user?.kol_profile?.status as string | undefined;
 
   const {
     data: postsData,
@@ -101,7 +351,7 @@ export function ProfilePage() {
     hasNextPage,
     isFetchingNextPage,
     isLoading: postsLoading,
-  } = useInfinitePostsByAuthor(username ?? '');
+  } = useInfinitePostsByAuthor(username);
 
   const { data: kolCalls, isLoading: callsLoading } = useKolRecommendations(kolHandle);
 
@@ -115,47 +365,21 @@ export function ProfilePage() {
     }
   }
 
-  function handleUnfollowConfirm() {
-    unfollow.mutate(undefined, { onSuccess: () => setShowUnfollowModal(false) });
-  }
-
   if (isLoading) {
     return (
-      <AppLayout>
-        <div className="animate-pulse flex flex-col gap-4">
-          <div className="h-40 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]" />
-          <div className="h-24 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]" />
-        </div>
-      </AppLayout>
+      <div className="animate-pulse flex flex-col gap-4">
+        <div className="h-40 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]" />
+        <div className="h-24 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]" />
+      </div>
     );
   }
 
-  if (isError || !user) {
-    return (
-      <AppLayout>
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <p className="text-[var(--color-text-secondary)] mb-2">User not found.</p>
-          <Link to="/feed">
-            <Button variant="secondary" size="sm">Back to Feed</Button>
-          </Link>
-        </div>
-      </AppLayout>
-    );
-  }
+  if (isError || !user) return null; // Caller handles fallback
 
   const showCalls = kolHandle || user.role === 'expert';
 
   return (
-    <AppLayout>
-      {/* Back nav */}
-      <Link
-        to="/feed"
-        className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors mb-4"
-      >
-        <ArrowLeft size={14} />
-        Back
-      </Link>
-
+    <>
       {/* Profile card */}
       <Card noPadding className="overflow-hidden">
         {/* Banner */}
@@ -424,10 +648,74 @@ export function ProfilePage() {
           title={`Unfollow @${username}?`}
           message={`You'll stop seeing their posts in your Followed feed. You can always follow them again.`}
           confirmLabel="Unfollow"
-          onConfirm={handleUnfollowConfirm}
+          onConfirm={() =>
+            unfollow.mutate(undefined, { onSuccess: () => setShowUnfollowModal(false) })
+          }
           onCancel={() => setShowUnfollowModal(false)}
           isLoading={unfollow.isPending}
         />
+      )}
+    </>
+  );
+}
+
+// ─── Main ProfilePage — resolves Hamilton user OR unclaimed KOL ───────────────
+
+export function ProfilePage() {
+  const { username } = useParams<{ username: string }>();
+
+  const {
+    data: user,
+    isLoading: userLoading,
+    isError: userError,
+  } = useUser(username ?? '');
+
+  // Only attempt KOL profile lookup if Hamilton user was not found
+  const shouldFallbackToKol = !userLoading && (userError || !user);
+  const { data: kolProfile, isLoading: kolLoading } = useKolProfile(
+    shouldFallbackToKol ? username : undefined,
+  );
+
+  const isKolProfile = shouldFallbackToKol && (kolProfile || kolLoading);
+
+  return (
+    <AppLayout>
+      {/* Back nav */}
+      <Link
+        to="/feed"
+        className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors mb-4"
+      >
+        <ArrowLeft size={14} />
+        Back
+      </Link>
+
+      {/* Initial loading */}
+      {userLoading && (
+        <div className="animate-pulse flex flex-col gap-4">
+          <div className="h-40 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]" />
+          <div className="h-24 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)]" />
+        </div>
+      )}
+
+      {/* Hamilton user found */}
+      {!userLoading && user && (
+        <HamiltonUserProfile username={username ?? ''} />
+      )}
+
+      {/* Fallback: KOL profile */}
+      {isKolProfile && (
+        <KolProfileView handle={username ?? ''} />
+      )}
+
+      {/* Not found anywhere */}
+      {!userLoading && !kolLoading && shouldFallbackToKol && !kolProfile && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Users size={40} className="text-[var(--color-text-tertiary)] mb-3" />
+          <p className="text-[var(--color-text-secondary)] mb-2">Profile not found.</p>
+          <Link to="/feed">
+            <Button variant="secondary" size="sm">Back to Feed</Button>
+          </Link>
+        </div>
       )}
     </AppLayout>
   );

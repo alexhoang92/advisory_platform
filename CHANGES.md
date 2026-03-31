@@ -2,6 +2,44 @@
 
 ---
 
+## 2026-03-31 — Unified profiles & Social Hearing feed (branch: KOL_scraper_clone)
+
+Unclaimed KOL profiles from the KOL-tracker database are now first-class public entities on Hamilton. Users can discover, follow, and see recommendations from public market experts who haven't yet joined the platform.
+
+### Added
+
+**Database**
+- New migration `20260331130000_add_kol_follow`:
+  - `kol_follows` table — `(follower_id FK users, kol_profile_id FK unclaimed_kol_profiles)` with unique constraint; allows Hamilton users to follow unclaimed KOL profiles independently of the Hamilton user follow system
+
+**Backend**
+- `POST /api/v1/kol-profiles/:handle/follow` — follow a KOL profile (JwtAuthGuard, upsert — safe to call multiple times)
+- `DELETE /api/v1/kol-profiles/:handle/follow` — unfollow a KOL profile (JwtAuthGuard)
+- `GET /api/v1/kol-profiles/followed-recommendations` — returns recent recommendations from KOL profiles the authenticated user follows, enriched with KOL profile metadata (declared before `:handle` route to avoid NestJS routing conflict)
+- `GET /api/v1/kol-profiles` and `GET /api/v1/kol-profiles/:handle` now use `OptionalJwtGuard`; responses include `kol_followers_count` (Hamilton follows) and `is_following` (bool for authenticated caller)
+- `KolService.getRecommendationsByHandles(handles[], limit)` — batch SQL query for recommendations across multiple KOL handles using `ANY($1)` param
+
+**Shared types (`packages/shared/src/types/index.ts`)**
+- `KolProfileSummary` extended with `kol_followers_count: number` and `is_following: boolean`
+- New `SocialHearingItem` interface — typed KOL recommendation enriched with `kol_profile` metadata for feed rendering
+
+**Frontend**
+- `hooks/useKolProfile.ts` — fetches a single KOL profile by handle from `/kol-profiles/:handle`; `retry: false` to allow fast fallback
+- `hooks/useKolFollow.ts` — follow/unfollow mutations for KOL profiles with optimistic cache updates on `is_following` and `kol_followers_count`
+- `hooks/useFeed.ts` — new unified feed hook replacing direct `useInfinitePosts` in FeedPage:
+  - **Latest**: merges Hamilton posts + all recent KOL calls (20 calls), sorted by timestamp
+  - **Followed**: merges Hamilton posts from followed users + recommendations from followed KOL profiles
+  - **Trending**: Hamilton posts only (unchanged)
+- `components/feed/SocialHearingCard.tsx` — feed card for KOL recommendations; shows "Social Hearing" badge (blue), "Unclaimed" badge (amber) when applicable, ticker, BUY/SELL direction, conviction, timestamp, follow button, and link to KOL profile
+- `hooks/useUser.ts` — added `retry: false` so 404s immediately trigger the KOL profile fallback without delay
+- `pages/ProfilePage.tsx` — unified profile resolution:
+  - If `/profile/:username` matches a Hamilton user → renders existing `HamiltonUserProfile` view (no change)
+  - If Hamilton user not found → falls back to `KolProfileView` for the same handle
+  - `KolProfileView`: "Unclaimed" / "Verified KOL" badge, Hamilton follower count, social follower count, KOL follow/unfollow button with confirm dialog, Recommendations tab with "Social Hearing" tag, claim CTA for unclaimed profiles
+- `pages/FeedPage.tsx` — updated to use `useFeed` hook; renders `SocialHearingCard` for `item_type: 'social_hearing'` items and `PostCard` for `item_type: 'post'` items
+
+---
+
 ## 2026-03-31 — Expert profiles, follow system, KOL data pipeline fix (branch: KOL_scraper_clone)
 
 ### Added
