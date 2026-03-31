@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { InteractionsService } from '../interactions/interactions.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import {
@@ -45,7 +46,10 @@ type PostWithRelations = Prisma.PostGetPayload<{ include: typeof postWithRelatio
 
 @Injectable()
 export class PostsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly interactions: InteractionsService,
+  ) {}
 
   async create(userId: string, dto: CreatePostDto): Promise<DomainPost> {
     const slug = dto.slug ?? this.generateSlug(dto.title);
@@ -79,7 +83,7 @@ export class PostsService {
       include: postWithRelationsInclude,
     });
 
-    return this.serializePost(post, true);
+    return this.serializePost(post, true, undefined);
   }
 
   async findAll(
@@ -87,14 +91,29 @@ export class PostsService {
     limit = 20,
     requestingUserId?: string,
     ticker?: string,
+    filter: 'latest' | 'followed' | 'trending' = 'latest',
   ): Promise<ApiResponse<DomainPost[]>> {
     const take = Math.min(limit, 100);
 
-    const where: import('@prisma/client').Prisma.PostWhereInput = {
+    // For trending: compute top post IDs by engagement score in last 48h
+    if (filter === 'trending') {
+      return this.findTrending(take, requestingUserId, ticker);
+    }
+
+    // For followed filter: restrict to posts from followed users
+    let followedAuthorIds: string[] | undefined;
+    if (filter === 'followed' && requestingUserId) {
+      const follows = await this.prisma.follow.findMany({
+        where: { follower_id: requestingUserId },
+        select: { following_id: true },
+      });
+      followedAuthorIds = follows.map((f) => f.following_id);
+    }
+
+    const where: Prisma.PostWhereInput = {
       visibility: { not: 'subscribers_only' },
-      ...(ticker && {
-        ticker_tags: { some: { ticker: ticker.toUpperCase() } },
-      }),
+      ...(ticker && { ticker_tags: { some: { ticker: ticker.toUpperCase() } } }),
+      ...(followedAuthorIds !== undefined && { author_id: { in: followedAuthorIds } }),
     };
 
     const posts = await this.prisma.post.findMany({
@@ -110,24 +129,101 @@ export class PostsService {
     const lastItem = items[items.length - 1];
     const nextCursor = hasMore && lastItem ? lastItem.id : null;
 
-    const subscribedExpertIds = requestingUserId
-      ? await this.getSubscribedExpertIds(requestingUserId)
-      : [];
-
-    const unlockedPostIds = requestingUserId
-      ? await this.getUnlockedPostIds(requestingUserId)
-      : [];
+    const [subscribedExpertIds, unlockedPostIds, interactionData] = await Promise.all([
+      requestingUserId ? this.getSubscribedExpertIds(requestingUserId) : Promise.resolve([]),
+      requestingUserId ? this.getUnlockedPostIds(requestingUserId) : Promise.resolve([]),
+      this.interactions.getInteractionData(items.map((p) => p.id), requestingUserId),
+    ]);
 
     const serialized = items.map((post) => {
       const isAuthor = post.author_id === requestingUserId;
       const isSubscribed = subscribedExpertIds.includes(post.author_id);
       const hasUnlocked = unlockedPostIds.includes(post.id);
       const hasAccess = isAuthor || isSubscribed || hasUnlocked;
-      return this.serializePost(post, hasAccess);
+      return this.serializePost(post, hasAccess, interactionData[post.id]);
     });
 
-    const meta: ApiMeta = { cursor: nextCursor, has_more: hasMore };
+    const meta: ApiMeta = {
+      cursor: nextCursor,
+      has_more: hasMore,
+      ...(filter === 'followed' && followedAuthorIds?.length === 0 && { empty_followed: true }),
+    };
     return { data: serialized, meta, error: null };
+  }
+
+  private async findTrending(
+    take: number,
+    requestingUserId?: string,
+    ticker?: string,
+  ): Promise<ApiResponse<DomainPost[]>> {
+    const since = new Date(Date.now() - 48 * 60 * 60 * 1000);
+
+    // Aggregate engagement (likes + saves + replies) per post in last 48h
+    const [likes, saves, replies] = await Promise.all([
+      this.prisma.postLike.groupBy({
+        by: ['post_id'],
+        where: { created_at: { gte: since } },
+        _count: { _all: true },
+      }),
+      this.prisma.postSave.groupBy({
+        by: ['post_id'],
+        where: { created_at: { gte: since } },
+        _count: { _all: true },
+      }),
+      this.prisma.postReply.groupBy({
+        by: ['post_id'],
+        where: { created_at: { gte: since } },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const scoreMap = new Map<string, number>();
+    for (const l of likes) scoreMap.set(l.post_id, (scoreMap.get(l.post_id) ?? 0) + l._count._all);
+    for (const s of saves) scoreMap.set(s.post_id, (scoreMap.get(s.post_id) ?? 0) + s._count._all);
+    for (const r of replies) scoreMap.set(r.post_id, (scoreMap.get(r.post_id) ?? 0) + r._count._all);
+
+    // Fall back to latest posts if no engagement data
+    const rankedIds = [...scoreMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, take)
+      .map(([id]) => id);
+
+    const where: Prisma.PostWhereInput = {
+      visibility: { not: 'subscribers_only' },
+      ...(ticker && { ticker_tags: { some: { ticker: ticker.toUpperCase() } } }),
+      ...(rankedIds.length > 0 && { id: { in: rankedIds } }),
+    };
+
+    const posts = await this.prisma.post.findMany({
+      where,
+      orderBy: rankedIds.length > 0 ? undefined : { created_at: 'desc' },
+      take: rankedIds.length > 0 ? undefined : take,
+      include: postWithRelationsInclude,
+    });
+
+    // Re-sort by score if we have ranked IDs
+    const sorted =
+      rankedIds.length > 0
+        ? rankedIds
+            .map((id) => posts.find((p) => p.id === id))
+            .filter((p): p is (typeof posts)[0] => p !== undefined)
+        : posts;
+
+    const [subscribedExpertIds, unlockedPostIds, interactionData] = await Promise.all([
+      requestingUserId ? this.getSubscribedExpertIds(requestingUserId) : Promise.resolve([]),
+      requestingUserId ? this.getUnlockedPostIds(requestingUserId) : Promise.resolve([]),
+      this.interactions.getInteractionData(sorted.map((p) => p.id), requestingUserId),
+    ]);
+
+    const serialized = sorted.map((post) => {
+      const isAuthor = post.author_id === requestingUserId;
+      const isSubscribed = subscribedExpertIds.includes(post.author_id);
+      const hasUnlocked = unlockedPostIds.includes(post.id);
+      const hasAccess = isAuthor || isSubscribed || hasUnlocked;
+      return this.serializePost(post, hasAccess, interactionData[post.id]);
+    });
+
+    return { data: serialized, meta: { has_more: false, cursor: null }, error: null };
   }
 
   async findOne(id: string, requestingUserId?: string): Promise<DomainPost> {
@@ -139,6 +235,8 @@ export class PostsService {
     if (!post) throw new NotFoundException('Post not found');
 
     const isAuthor = post.author_id === requestingUserId;
+    const interactionMap = await this.interactions.getInteractionData([post.id], requestingUserId);
+    const interactionData = interactionMap[post.id];
 
     if (post.visibility === 'subscribers_only') {
       if (!requestingUserId) throw new ForbiddenException('This post requires a subscription');
@@ -146,23 +244,23 @@ export class PostsService {
         const isSubscribed = await this.isSubscribedTo(requestingUserId, post.author_id);
         if (!isSubscribed) throw new ForbiddenException('This post requires a subscription');
       }
-      return this.serializePost(post, true);
+      return this.serializePost(post, true, interactionData);
     }
 
-    if (post.visibility === 'public') return this.serializePost(post, true);
+    if (post.visibility === 'public') return this.serializePost(post, true, interactionData);
 
     // preview
-    if (isAuthor) return this.serializePost(post, true);
+    if (isAuthor) return this.serializePost(post, true, interactionData);
 
     if (requestingUserId) {
       const isSubscribed = await this.isSubscribedTo(requestingUserId, post.author_id);
-      if (isSubscribed) return this.serializePost(post, true);
+      if (isSubscribed) return this.serializePost(post, true, interactionData);
 
       const hasUnlocked = await this.hasUnlockedPost(requestingUserId, post.id);
-      if (hasUnlocked) return this.serializePost(post, true);
+      if (hasUnlocked) return this.serializePost(post, true, interactionData);
     }
 
-    return this.serializePost(post, false);
+    return this.serializePost(post, false, interactionData);
   }
 
   async update(id: string, userId: string, dto: UpdatePostDto): Promise<DomainPost> {
@@ -202,7 +300,7 @@ export class PostsService {
       include: postWithRelationsInclude,
     });
 
-    return this.serializePost(updated, true);
+    return this.serializePost(updated, true, undefined);
   }
 
   async remove(id: string, userId: string): Promise<{ id: string }> {
@@ -289,7 +387,11 @@ export class PostsService {
 
   // ─── Serialization ──────────────────────────────────────────────────────────
 
-  private serializePost(post: PostWithRelations, hasAccess: boolean): DomainPost {
+  private serializePost(
+    post: PostWithRelations,
+    hasAccess: boolean,
+    interactionData?: { counts: { likes: number; saves: number; replies: number }; userInteractions: { liked: boolean; saved: boolean } },
+  ): DomainPost {
     const hasLockedContent = post.body_locked !== null && post.body_locked !== undefined;
 
     return {
@@ -327,6 +429,11 @@ export class PostsService {
         display_name: post.author.display_name,
         avatar_url: post.author.avatar_url,
       },
+      likes_count: interactionData?.counts.likes ?? 0,
+      saves_count: interactionData?.counts.saves ?? 0,
+      replies_count: interactionData?.counts.replies ?? 0,
+      user_liked: interactionData?.userInteractions.liked ?? false,
+      user_saved: interactionData?.userInteractions.saved ?? false,
     };
   }
 

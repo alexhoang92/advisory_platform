@@ -51,6 +51,15 @@ export interface AssetTagSummary {
   asset_type: string;
 }
 
+export interface PostReply {
+  id: string;
+  post_id: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+  user: Pick<User, 'id' | 'username' | 'display_name' | 'avatar_url'>;
+}
+
 export interface Post {
   id: string;
   author_id: string;
@@ -77,6 +86,13 @@ export interface Post {
   created_at: string;
   updated_at: string;
   author?: Pick<User, 'id' | 'username' | 'display_name' | 'avatar_url'>;
+  // Interaction counts
+  likes_count: number;
+  saves_count: number;
+  replies_count: number;
+  // Current user's interaction state
+  user_liked: boolean;
+  user_saved: boolean;
 }
 
 export interface PortfolioCall {
@@ -158,6 +174,7 @@ export interface ApiMeta {
   total?: number;
   cursor?: string | null;
   has_more?: boolean;
+  empty_followed?: boolean;
 }
 
 export interface ApiError {

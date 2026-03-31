@@ -2,6 +2,61 @@
 
 ---
 
+## 2026-03-31 — Post interactions, feed filters, image upload fix (branch: KOL_scraper_clone)
+
+### Fixed
+
+- **Image uploads broken on all post types** — Vite dev server only proxied `/api` to the backend;
+  `/uploads` static assets were resolving to the frontend origin (port 5173) and returning 404.
+  Added `/uploads` proxy in `apps/web/vite.config.ts` to forward to `http://localhost:3000`.
+
+### Added
+
+**Database**
+- New migration `20260331000744_add_post_interactions`:
+  - `post_likes` — unique per `(user_id, post_id)`
+  - `post_saves` — unique per `(user_id, post_id)`
+  - `post_replies` — threaded replies with `body`, timestamps, and cascading deletes
+
+**Backend (`apps/api/src/interactions/`)**
+- `interactions.service.ts` — toggle like, toggle save, create/list/delete replies,
+  batch-fetch interaction counts + per-user state for post lists
+- `interactions.controller.ts` — routes mounted under `POST /api/v1/posts/:postId`:
+  - `POST   /like` — toggle like; returns `{ liked, count }`
+  - `POST   /save` — toggle save; returns `{ saved, count }`
+  - `GET    /replies` — list replies (asc order)
+  - `POST   /replies` — create reply (auth required)
+  - `DELETE /replies/:replyId` — delete own reply (auth required)
+- `posts.service.ts` — `findAll` and `findOne` now attach `likes_count`, `saves_count`,
+  `replies_count`, `user_liked`, `user_saved` to every serialized post
+- `posts.service.ts` — new `filter` query parameter on `GET /api/v1/posts`:
+  - `latest` (default) — ordered by `created_at DESC`
+  - `followed` — restricts to posts authored by users the current user follows;
+    sets `meta.empty_followed = true` when the user has no follows
+  - `trending` — aggregates `likes + saves + replies` per post in last 48 h,
+    returns posts ranked by engagement score; falls back to latest if no data
+
+**Shared types (`packages/shared/src/types/index.ts`)**
+- Added `PostReply` interface
+- Added `likes_count`, `saves_count`, `replies_count`, `user_liked`, `user_saved` to `Post`
+- Added `empty_followed?: boolean` to `ApiMeta`
+
+**Frontend**
+- `hooks/usePosts.ts` — new hooks: `useLikePost`, `useSavePost`, `useReplies`,
+  `useCreateReply`, `useDeleteReply`; optimistic updates via `InfiniteData` cache patching;
+  `useInfinitePosts` now accepts a `FeedFilter` param
+- `components/posts/PostCard.tsx`:
+  - Like button (heart, fills on active), reply count button, save button (bookmark)
+  - All buttons show counts in monospace; buttons disabled when unauthenticated
+  - Collapsible reply section: lists replies with author chips, delete button for own replies,
+    inline reply input with send button
+- `pages/FeedPage.tsx`:
+  - Tab bar — Latest / Followed / Trending with active accent underline
+  - Followed empty state: "Follow top experts to get inspired daily" with icon + description
+  - Trending empty state copy variant
+
+---
+
 ## 2026-03-30 — Homepage redesign + Market Pulse hero section (branch: KOL_scraper_clone)
 
 Redesigned the pre-login homepage into a market explore page and added a live

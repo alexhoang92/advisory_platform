@@ -1,11 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PenSquare, RefreshCw } from 'lucide-react';
+import { PenSquare, RefreshCw, Users, TrendingUp, Clock } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { PostCard } from '../components/posts/PostCard';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import { useInfinitePosts } from '../hooks/usePosts';
+import { useInfinitePosts, type FeedFilter } from '../hooks/usePosts';
 import { useAuthStore } from '../stores/authStore';
 import { KolLeaderboard } from '../components/kol/KolLeaderboard';
 import { HeroSection } from '../components/kol/HeroSection';
@@ -15,7 +15,6 @@ function RightPanel() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Quick profile */}
       {user && (
         <Card>
           <div className="flex items-center gap-3 mb-3">
@@ -42,7 +41,6 @@ function RightPanel() {
         </Card>
       )}
 
-      {/* Platform info */}
       <Card>
         <h3 className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide mb-3">
           About Hamilton
@@ -53,19 +51,24 @@ function RightPanel() {
         </p>
       </Card>
 
-      {/* KOL Leaderboard */}
       <KolLeaderboard />
     </div>
   );
 }
 
+const FILTER_TABS: { key: FeedFilter; label: string; icon: React.ReactNode }[] = [
+  { key: 'latest', label: 'Latest', icon: <Clock size={13} /> },
+  { key: 'followed', label: 'Followed', icon: <Users size={13} /> },
+  { key: 'trending', label: 'Trending', icon: <TrendingUp size={13} /> },
+];
+
 export function FeedPage() {
+  const [filter, setFilter] = useState<FeedFilter>('latest');
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, refetch } =
-    useInfinitePosts();
+    useInfinitePosts(filter);
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  // Infinite scroll observer
   useEffect(() => {
     const el = loadMoreRef.current;
     if (!el) return;
@@ -85,6 +88,7 @@ export function FeedPage() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const allPosts = data?.pages.flatMap((page) => page.data ?? []) ?? [];
+  const isEmptyFollowed = filter === 'followed' && data?.pages[0]?.meta?.empty_followed === true;
 
   return (
     <AppLayout rightPanel={<RightPanel />}>
@@ -93,13 +97,10 @@ export function FeedPage() {
         <HeroSection isLoggedIn={true} />
       </div>
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Header + filter tabs */}
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="font-display font-bold text-2xl text-[var(--color-text-primary)]">Feed</h1>
-          <p className="text-sm text-[var(--color-text-secondary)] mt-0.5">
-            Latest posts from the community
-          </p>
         </div>
         <Button
           variant="ghost"
@@ -110,6 +111,24 @@ export function FeedPage() {
           <RefreshCw size={14} />
           Refresh
         </Button>
+      </div>
+
+      {/* Filter tabs */}
+      <div className="flex items-center gap-1 mb-6 border-b border-[var(--color-border)]">
+        {FILTER_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setFilter(tab.key)}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              filter === tab.key
+                ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Loading state */}
@@ -134,10 +153,25 @@ export function FeedPage() {
         </div>
       )}
 
-      {/* Empty state */}
-      {!isLoading && !isError && allPosts.length === 0 && (
+      {/* Empty: followed but no follows */}
+      {!isLoading && !isError && isEmptyFollowed && (
+        <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-[var(--color-border)] rounded-lg gap-3">
+          <Users size={32} className="text-[var(--color-text-tertiary)]" />
+          <p className="text-[var(--color-text-secondary)] font-medium">
+            Follow top experts to get inspired daily
+          </p>
+          <p className="text-sm text-[var(--color-text-tertiary)] max-w-xs">
+            Discover and follow traders with verified track records to see their latest posts here.
+          </p>
+        </div>
+      )}
+
+      {/* Empty: no posts */}
+      {!isLoading && !isError && !isEmptyFollowed && allPosts.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-[var(--color-border)] rounded-lg">
-          <p className="text-[var(--color-text-secondary)] mb-2">No posts yet.</p>
+          <p className="text-[var(--color-text-secondary)] mb-2">
+            {filter === 'trending' ? 'No trending posts yet.' : 'No posts yet.'}
+          </p>
           <Link to="/posts/new">
             <Button variant="primary" size="sm">
               Be the first to post

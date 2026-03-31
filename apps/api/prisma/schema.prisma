@@ -104,6 +104,9 @@ model User {
   portfolio_calls  PortfolioCall[]  @relation("ExpertCalls")
   credibility_score  CredibilityScore?
   mentioned_in_posts Post[]            @relation("PostUserMentions")
+  post_likes         PostLike[]
+  post_saves         PostSave[]
+  post_replies       PostReply[]
 
   @@map("users")
 }
@@ -144,6 +147,9 @@ model Post {
   tips            Tip[]
   ticker_tags     AssetTag[]      @relation("PostTickerTags")
   user_mentions   User[]          @relation("PostUserMentions")
+  likes           PostLike[]
+  saves           PostSave[]
+  replies         PostReply[]
 
   @@index([author_id])
   @@index([created_at(sort: Desc)])
@@ -259,6 +265,50 @@ model Ticker {
   synced_at  DateTime @default(now()) @updatedAt
 
   @@map("tickers")
+}
+
+model PostLike {
+  id         String   @id @default(cuid())
+  user_id    String
+  post_id    String
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, post_id])
+  @@index([post_id])
+  @@map("post_likes")
+}
+
+model PostSave {
+  id         String   @id @default(cuid())
+  user_id    String
+  post_id    String
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, post_id])
+  @@index([post_id])
+  @@map("post_saves")
+}
+
+model PostReply {
+  id         String   @id @default(cuid())
+  user_id    String
+  post_id    String
+  body       String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@index([post_id])
+  @@index([user_id])
+  @@map("post_replies")
 }
 
 model AssetTag {

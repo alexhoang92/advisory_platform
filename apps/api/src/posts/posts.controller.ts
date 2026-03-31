@@ -46,9 +46,11 @@ export class PostsController {
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
     @Query('ticker') ticker?: string,
+    @Query('filter') filter?: string,
   ) {
     const userId: string | undefined = req.user?.id ?? undefined;
-    return this.postsService.findAll(cursor, limit ? parseInt(limit, 10) : 20, userId, ticker);
+    const feedFilter = (['latest', 'followed', 'trending'].includes(filter ?? '') ? filter : 'latest') as 'latest' | 'followed' | 'trending';
+    return this.postsService.findAll(cursor, limit ? parseInt(limit, 10) : 20, userId, ticker, feedFilter);
   }
 
   @Get(':id')
