@@ -11,12 +11,11 @@ import {
   Request,
   HttpCode,
   HttpStatus,
-  ExecutionContext,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtGuard } from '../common/guards/optional-jwt.guard';
 import { IsString, MinLength } from 'class-validator';
 
 class ChangePasswordDto {
@@ -30,18 +29,6 @@ class ChangePasswordDto {
 
 interface RequestWithUser extends Request {
   user: { id: string } | null;
-}
-
-// Optional JWT guard: passes through even without a token
-class OptionalJwtGuard extends AuthGuard('jwt') {
-  override canActivate(context: ExecutionContext) {
-    return super.canActivate(context);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  override handleRequest(_err: unknown, user: any): any {
-    return user ?? null;
-  }
 }
 
 @Controller('users')

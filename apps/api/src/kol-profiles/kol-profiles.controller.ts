@@ -1,7 +1,6 @@
 import {
   Controller,
   Delete,
-  ExecutionContext,
   Get,
   HttpCode,
   HttpStatus,
@@ -11,21 +10,10 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtGuard } from '../common/guards/optional-jwt.guard';
 import { KolProfilesService } from './kol-profiles.service';
 import { KolService } from '../kol/kol.service';
-
-// Optional JWT guard: passes through even without a token (returns null user)
-class OptionalJwtGuard extends AuthGuard('jwt') {
-  override canActivate(context: ExecutionContext) {
-    return super.canActivate(context);
-  }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  override handleRequest(_err: unknown, user: any): any {
-    return user ?? null;
-  }
-}
 
 @Controller('kol-profiles')
 export class KolProfilesController {

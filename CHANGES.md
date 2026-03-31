@@ -1,6 +1,40 @@
 # Change Log
 
 ---
+## Codebase Optimisation (31-Mar-2026)
+
+### 1. Shared `OptionalJwtGuard`
+- Extracted identical inline guard class from `posts.controller.ts`, `users.controller.ts`, and `kol-profiles.controller.ts` into `apps/api/src/common/guards/optional-jwt.guard.ts`
+- All three controllers now import from the shared location; `ExecutionContext` and `AuthGuard` imports removed from each controller
+
+### 2. Dead type removal
+- Deleted `ExpertProfile` interface from `packages/shared` — zero usages in any app code
+- Deleted deprecated `CredibilityScore` interface — replaced by `ExpertCredibility`; no remaining usages
+
+### 3. CORS fallback fix
+- Removed `http://localhost:3001` from hardcoded CORS fallback in `apps/api/src/main.ts` — port 3001 was never used anywhere in the codebase
+- Correct dev setup: API on `:3000`, Vite dev server on `:5173`
+
+### 4. Dev server ports — canonical command
+- **Why multiple ports appeared**: Running API and web servers manually without `npm run dev` caused port collisions. The single correct command from the repo root is `npm run dev` (invokes turbo, starts both concurrently with correct ports)
+- API: `:3000` (set via `PORT` env var or `.env`), Vite proxy forwards `/api` → `localhost:3000`
+- Web: `:5173` (Vite default, CORS-allowed in API)
+
+### 5. Uploads excluded from git
+- Added `apps/api/uploads/` to `.gitignore`
+
+---
+## Known Gap: PortfolioCall creation not wired to trade_call posts
+
+When a user creates a post with `post_type: "trade_call"`, no `PortfolioCall` record is created. The table and shared type exist but `PostsService.create()` does not invoke any portfolio logic. Credibility scoring therefore has no platform call data to work with until this is implemented.
+
+**Deferred to next session.** Implementation requires:
+- Adding portfolio call fields to `CreatePostDto`
+- Creating a `PortfolioCallsService` or extending `PostsService`
+- Triggering `CredibilityService.triggerRecompute()` after creation
+- No schema changes needed
+
+---
 ## Phase 3 — Credibility Engine (31-Mar-2026)
 
 ### Session A — Schema Migrations

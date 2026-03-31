@@ -109,16 +109,6 @@ export interface SocialHearingItem {
   };
 }
 
-export interface ExpertProfile {
-  user_id: string;
-  specializations: string[];
-  subscription_price_monthly: number; // cents
-  credibility_score: number;
-  total_followers: number;
-  win_rate: number;
-  avg_return: number;
-}
-
 export interface AssetTagSummary {
   id: string;
   ticker: string;
@@ -221,21 +211,6 @@ export interface Tip {
   amount: number; // cents
   stripe_payment_intent_id: string;
   created_at: string;
-}
-
-/** @deprecated Use ExpertCredibility — see credibility engine types above */
-export interface CredibilityScore {
-  id: string;
-  expertUserId: string;
-  displayState: CredibilityDisplayState;
-  platformScore30d: number | null;
-  platformScore90d: number | null;
-  platformCallCount: number;
-  socialScore30d: number | null;
-  socialScore90d: number | null;
-  socialCallCount: number;
-  computedAt: string;
-  windowNote: string | null;
 }
 
 export interface Ticker {

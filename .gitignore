@@ -61,3 +61,6 @@ coverage/
 __pycache__/
 *.db
 venv/
+
+# API upload storage (runtime-generated, not for version control)
+apps/api/uploads/
