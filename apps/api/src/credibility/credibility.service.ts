@@ -408,6 +408,79 @@ export class CredibilityService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  // ── Social-only credibility for unclaimed KOL profiles ───────────────────
+
+  /**
+   * Compute a social-only credibility track for any KOL handle, regardless of
+   * whether they have claimed a Hamilton account. Used for the KOL profile page.
+   * Does NOT persist to the credibility_scores table — always computed live.
+   */
+  async computeSocialTrackForHandle(handle: string): Promise<ExpertCredibility> {
+    const nowMs = Date.now();
+    const noData: ExpertCredibility = {
+      display_state: 'NO_DATA',
+      platform: null,
+      public_statements: null,
+      computed_at: new Date().toISOString(),
+      public_note: null,
+    };
+
+    const socialCalls = await this.kolService.getSocialCallsForScoring(handle);
+    if (socialCalls.length === 0) return noData;
+
+    const scorable = socialCalls.filter(
+      (sc) =>
+        sc.excluded_reason === null &&
+        (sc.confidence_score === null || sc.confidence_score >= 0.7),
+    );
+
+    if (scorable.length < 20) return noData;
+
+    const MS_30 = 30 * 24 * 60 * 60 * 1000;
+    const MS_90 = 90 * 24 * 60 * 60 * 1000;
+
+    const callScores: CallScore[] = scorable.map((sc) => {
+      const postedMs = sc.posted_at ? new Date(sc.posted_at).getTime() : nowMs;
+      const ageMs = nowMs - postedMs;
+      const isLong = ['buy', 'long', 'BUY', 'LONG'].includes(sc.direction);
+
+      const ret30 =
+        sc.price_t0 && sc.price_t30
+          ? ((sc.price_t30 - sc.price_t0) / sc.price_t0) * 100
+          : null;
+      const ret90 =
+        sc.price_t0 && sc.price_t90
+          ? ((sc.price_t90 - sc.price_t0) / sc.price_t0) * 100
+          : null;
+
+      const directedRet30 = ret30 !== null ? (isLong ? ret30 : -ret30) : null;
+      const directedRet90 = ret90 !== null ? (isLong ? ret90 : -ret90) : null;
+
+      const success30d =
+        ageMs >= MS_30 && ret30 !== null ? (isLong ? ret30 > 2 : ret30 < -2) : null;
+      const success90d =
+        ageMs >= MS_90 && ret90 !== null ? (isLong ? ret90 > 2 : ret90 < -2) : null;
+
+      return {
+        direction: sc.direction,
+        outcome_return: directedRet30 ?? directedRet90,
+        opened_at: new Date(postedMs),
+        success30d,
+        success90d,
+      };
+    });
+
+    const track = computeTrackScore(callScores, nowMs);
+
+    return {
+      display_state: 'PUBLIC_ONLY',
+      platform: null,
+      public_statements: track,
+      computed_at: new Date().toISOString(),
+      public_note: null,
+    };
+  }
+
   // ── Public trigger (used by PostsService and nightly batch) ──────────────
 
   async triggerRecompute(expertUserId: string): Promise<void> {

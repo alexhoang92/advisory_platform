@@ -3,6 +3,10 @@ import { z } from 'zod';
 export const PostVisibilitySchema = z.enum(['public', 'preview', 'subscribers_only']);
 export const PostTypeSchema = z.enum(['discussion', 'trade_call', 'research', 'update']);
 
+export const TradeDirectionSchema = z.enum(['long', 'short']);
+export const TradeTimeframeSchema = z.enum(['intraday', 'swing', 'position', 'long_term']);
+export const TradeConvictionSchema = z.enum(['low', 'medium', 'high']);
+
 export const CreatePostSchema = z.object({
   title: z
     .string()
@@ -24,6 +28,13 @@ export const CreatePostSchema = z.object({
   user_mentions: z.array(z.string()).default([]),
   post_type: PostTypeSchema.default('discussion'),
   published_at: z.string().datetime().optional().nullable(),
+  // Trade-call specific fields (required when post_type === 'trade_call')
+  trade_ticker: z.string().toUpperCase().optional(),
+  trade_direction: TradeDirectionSchema.optional(),
+  trade_target_price: z.number().positive().optional().nullable(),
+  trade_stop_loss: z.number().positive().optional().nullable(),
+  trade_timeframe: TradeTimeframeSchema.optional(),
+  trade_conviction: TradeConvictionSchema.optional(),
 });
 
 export type CreatePostInput = z.infer<typeof CreatePostSchema>;

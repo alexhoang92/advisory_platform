@@ -14,12 +14,14 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtGuard } from '../common/guards/optional-jwt.guard';
 import { KolProfilesService } from './kol-profiles.service';
 import { KolService } from '../kol/kol.service';
+import { CredibilityService } from '../credibility/credibility.service';
 
 @Controller('kol-profiles')
 export class KolProfilesController {
   constructor(
     private readonly service: KolProfilesService,
     private readonly kolService: KolService,
+    private readonly credibilityService: CredibilityService,
   ) {}
 
   /** List KOL profiles. Optionally filter by status (unclaimed | claimed). */
@@ -49,6 +51,16 @@ export class KolProfilesController {
       req.user.id,
       limit ? parseInt(limit, 10) : 5,
     );
+  }
+
+  /**
+   * Social-only credibility score for any KOL handle (claimed or unclaimed).
+   * Computed live from price_snapshots — not persisted, not Redis-cached.
+   * NOTE: must be declared before `:handle` to avoid route conflict.
+   */
+  @Get(':handle/credibility')
+  getKolCredibility(@Param('handle') handle: string) {
+    return this.credibilityService.computeSocialTrackForHandle(handle);
   }
 
   /** Get a single KOL profile by Twitter handle. */

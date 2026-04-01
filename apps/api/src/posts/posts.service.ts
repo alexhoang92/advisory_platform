@@ -2,7 +2,10 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { InteractionsService } from '../interactions/interactions.service';
@@ -46,9 +49,12 @@ type PostWithRelations = Prisma.PostGetPayload<{ include: typeof postWithRelatio
 
 @Injectable()
 export class PostsService {
+  private readonly logger = new Logger(PostsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly interactions: InteractionsService,
+    @InjectQueue('credibility') private readonly credibilityQueue: Queue,
   ) {}
 
   async create(userId: string, dto: CreatePostDto): Promise<DomainPost> {
@@ -82,6 +88,28 @@ export class PostsService {
       },
       include: postWithRelationsInclude,
     });
+
+    // For trade_call posts: create the linked PortfolioCall and enqueue credibility recompute
+    if (dto.post_type === 'trade_call' && dto.trade_ticker && dto.trade_direction) {
+      await this.prisma.portfolioCall.create({
+        data: {
+          post_id: post.id,
+          expert_id: userId,
+          ticker: dto.trade_ticker.toUpperCase(),
+          direction: dto.trade_direction,
+          target_price: dto.trade_target_price ?? 0,
+          stop_loss: dto.trade_stop_loss ?? 0,
+          timeframe: dto.trade_timeframe ?? 'swing',
+          conviction: dto.trade_conviction ?? 'medium',
+          status: 'open',
+          opened_at: new Date(),
+        },
+      });
+
+      this.credibilityQueue
+        .add('credibility-recompute', { expertUserId: userId })
+        .catch((err: unknown) => this.logger.warn('Failed to enqueue credibility recompute', err));
+    }
 
     return this.serializePost(post, true, undefined);
   }

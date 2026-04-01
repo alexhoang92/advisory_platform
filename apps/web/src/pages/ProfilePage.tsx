@@ -28,6 +28,7 @@ import { useFollow } from '../hooks/useFollow';
 import { useKolProfile } from '../hooks/useKolProfile';
 import { useKolFollow } from '../hooks/useKolFollow';
 import { useCredibility } from '../hooks/useCredibility';
+import { useKolCredibility } from '../hooks/useKolCredibility';
 import { useInfinitePostsByAuthor } from '../hooks/usePosts';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../lib/api';
@@ -97,7 +98,9 @@ function KolProfileView({ handle }: { handle: string }) {
   const { data: kolProfile, isLoading } = useKolProfile(handle);
   const { follow, unfollow } = useKolFollow(handle);
   const [showUnfollowModal, setShowUnfollowModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'credibility' | 'recommendations'>('credibility');
   const { data: kolCalls, isLoading: callsLoading } = useKolRecommendations(handle);
+  const { data: kolCredibility, isLoading: credLoading } = useKolCredibility(handle);
 
   const isFollowing = kolProfile?.is_following ?? false;
 
@@ -128,6 +131,11 @@ function KolProfileView({ handle }: { handle: string }) {
       </div>
     );
   }
+
+  const hasCredibilityData =
+    kolCredibility &&
+    kolCredibility.display_state !== 'NO_DATA' &&
+    kolCredibility.public_statements !== null;
 
   return (
     <>
@@ -255,69 +263,137 @@ function KolProfileView({ handle }: { handle: string }) {
         </div>
       </Card>
 
-      {/* Recommendations tab */}
+      {/* Tabs */}
       <div className="mt-6 flex items-center gap-1 border-b border-[var(--color-border)]">
-        <div className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 border-[var(--color-accent)] text-[var(--color-accent)] -mb-px">
+        <button
+          onClick={() => setActiveTab('credibility')}
+          className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === 'credibility'
+              ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+              : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+          }`}
+        >
           <TrendingUp size={13} />
+          Credibility
+        </button>
+        <button
+          onClick={() => setActiveTab('recommendations')}
+          className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === 'recommendations'
+              ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+              : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+          }`}
+        >
           Recommendations
           <span className="text-[10px] ml-1 px-1.5 py-0.5 rounded bg-[#4a9eff18] text-[var(--color-info)] border border-[#4a9eff30]">
             Social Hearing
           </span>
-        </div>
+        </button>
       </div>
 
-      <div className="mt-4 flex flex-col gap-3">
-        {callsLoading && (
-          <div className="flex flex-col gap-3">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-14 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)] animate-pulse"
+      {/* Credibility tab */}
+      {activeTab === 'credibility' && (
+        <div className="mt-4 flex flex-col gap-4">
+          {/* Social-hearing disclaimer banner */}
+          <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-[#f5a62310] border border-[#f5a62330]">
+            <span className="text-sm text-[var(--color-warning)] flex-shrink-0 leading-tight mt-px">ⓘ</span>
+            <p className="text-xs text-[var(--color-warning)] leading-relaxed">
+              This credibility score is computed solely from public social media activity monitored
+              by Hamilton&apos;s Social Hearing engine. It has not been independently verified and
+              may not reflect this expert&apos;s full track record.{' '}
+              <span className="font-semibold">For reference only.</span>
+            </p>
+          </div>
+
+          {/* Loading state */}
+          {credLoading && (
+            <div className="flex flex-col gap-3">
+              <div className="h-40 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border)] animate-pulse" />
+              <div className="h-24 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border)] animate-pulse" />
+            </div>
+          )}
+
+          {/* No data state */}
+          {!credLoading && !hasCredibilityData && (
+            <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-[var(--color-border)] rounded-xl">
+              <TrendingUp size={32} className="text-[var(--color-text-tertiary)] mb-3" />
+              <p className="text-sm font-semibold text-[var(--color-text-secondary)] mb-1">
+                Not enough data yet
+              </p>
+              <p className="text-xs text-[var(--color-text-tertiary)] max-w-xs">
+                A minimum of 20 tracked calls with verified price outcomes are needed to compute a score.
+              </p>
+            </div>
+          )}
+
+          {/* Score cards */}
+          {!credLoading && hasCredibilityData && kolCredibility.public_statements && (
+            <>
+              <PerformanceCard
+                track={kolCredibility.public_statements}
+                label="Public Statement Evaluation"
               />
-            ))}
-          </div>
-        )}
+              <RatingDistributionChart data={kolCredibility.public_statements.rating_distribution} />
+            </>
+          )}
+        </div>
+      )}
 
-        {!callsLoading && (!kolCalls || kolCalls.length === 0) && (
-          <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-[var(--color-border)] rounded-lg">
-            <TrendingUp size={28} className="text-[var(--color-text-tertiary)] mb-2" />
-            <p className="text-sm text-[var(--color-text-tertiary)]">No recommendations tracked yet.</p>
-          </div>
-        )}
+      {/* Recommendations tab */}
+      {activeTab === 'recommendations' && (
+        <div className="mt-4 flex flex-col gap-3">
+          {callsLoading && (
+            <div className="flex flex-col gap-3">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="h-14 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)] animate-pulse"
+                />
+              ))}
+            </div>
+          )}
 
-        {kolCalls && kolCalls.length > 0 && (
-          <Card noPadding className="overflow-hidden">
-            {kolCalls.map((call, i) => (
-              <div
-                key={call.id}
-                className={`flex items-center justify-between px-4 py-3 ${
-                  i < kolCalls.length - 1 ? 'border-b border-[var(--color-border)]' : ''
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <DirectionBadge direction={call.direction} />
-                  <span className="font-mono text-sm font-semibold text-[var(--color-text-primary)] uppercase tracking-wide">
-                    {call.ticker}
-                  </span>
-                  {call.conviction && (
-                    <span className="text-xs text-[var(--color-text-tertiary)] capitalize">
-                      {call.conviction.toLowerCase()}
+          {!callsLoading && (!kolCalls || kolCalls.length === 0) && (
+            <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-[var(--color-border)] rounded-lg">
+              <TrendingUp size={28} className="text-[var(--color-text-tertiary)] mb-2" />
+              <p className="text-sm text-[var(--color-text-tertiary)]">No recommendations tracked yet.</p>
+            </div>
+          )}
+
+          {kolCalls && kolCalls.length > 0 && (
+            <Card noPadding className="overflow-hidden">
+              {kolCalls.map((call, i) => (
+                <div
+                  key={call.id}
+                  className={`flex items-center justify-between px-4 py-3 ${
+                    i < kolCalls.length - 1 ? 'border-b border-[var(--color-border)]' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <DirectionBadge direction={call.direction} />
+                    <span className="font-mono text-sm font-semibold text-[var(--color-text-primary)] uppercase tracking-wide">
+                      {call.ticker}
                     </span>
-                  )}
+                    {call.conviction && (
+                      <span className="text-xs text-[var(--color-text-tertiary)] capitalize">
+                        {call.conviction.toLowerCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-[var(--color-text-tertiary)]">
+                      {timeAgo(call.posted_at)}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#4a9eff18] text-[var(--color-info)] border border-[#4a9eff30]">
+                      Social Hearing
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-[var(--color-text-tertiary)]">
-                    {timeAgo(call.posted_at)}
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#4a9eff18] text-[var(--color-info)] border border-[#4a9eff30]">
-                    Social Hearing
-                  </span>
-                </div>
-              </div>
-            ))}
-          </Card>
-        )}
-      </div>
+              ))}
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Unfollow modal */}
       {showUnfollowModal && (
@@ -367,20 +443,41 @@ function CollapsibleSection({
 function CredibilityTab({
   username,
   credibility,
+  isOwnProfile,
 }: {
   username: string;
   credibility: ExpertCredibility | null | undefined;
+  isOwnProfile: boolean;
 }) {
   if (!credibility || credibility.display_state === 'NO_DATA') {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-[var(--color-border)] rounded-xl">
         <TrendingUp size={32} className="text-[var(--color-text-tertiary)] mb-3" />
-        <p className="text-sm font-semibold text-[var(--color-text-secondary)] mb-1">
-          Building track record...
-        </p>
-        <p className="text-xs text-[var(--color-text-tertiary)] max-w-xs">
-          Follow this expert to be notified when their credibility score is ready.
-        </p>
+        {isOwnProfile ? (
+          <>
+            <p className="text-sm font-semibold text-[var(--color-text-secondary)] mb-1">
+              Your credibility score isn't ready yet
+            </p>
+            <p className="text-xs text-[var(--color-text-tertiary)] max-w-xs mb-4">
+              Publish at least 10 Trade Call posts to unlock your platform credibility score.
+            </p>
+            <Link
+              to="/posts/new"
+              className="text-xs font-semibold text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors"
+            >
+              Create a Trade Call →
+            </Link>
+          </>
+        ) : (
+          <>
+            <p className="text-sm font-semibold text-[var(--color-text-secondary)] mb-1">
+              Building track record...
+            </p>
+            <p className="text-xs text-[var(--color-text-tertiary)] max-w-xs">
+              Follow this expert to be notified when their credibility score is ready.
+            </p>
+          </>
+        )}
       </div>
     );
   }
@@ -670,7 +767,7 @@ function HamiltonUserProfile({ username }: { username: string }) {
       {/* Credibility tab */}
       {activeTab === 'credibility' && user.role === 'expert' && (
         <div className="mt-4">
-          <CredibilityTab username={username} credibility={credibility} />
+          <CredibilityTab username={username} credibility={credibility} isOwnProfile={isOwnProfile} />
         </div>
       )}
 
@@ -804,11 +901,13 @@ export function ProfilePage() {
 
   // Only attempt KOL profile lookup if Hamilton user was not found
   const shouldFallbackToKol = !userLoading && (userError || !user);
-  const { data: kolProfile, isLoading: kolLoading } = useKolProfile(
+  const { data: kolProfile, isLoading: kolLoading, isError: kolError } = useKolProfile(
     shouldFallbackToKol ? username : undefined,
   );
 
-  const isKolProfile = shouldFallbackToKol && (kolProfile || kolLoading);
+  // Show KolProfileView while loading OR once profile data is present.
+  // kolError means it's truly not found anywhere.
+  const isKolProfile = shouldFallbackToKol && !kolError;
 
   return (
     <AppLayout>
@@ -840,7 +939,7 @@ export function ProfilePage() {
       )}
 
       {/* Not found anywhere */}
-      {!userLoading && !kolLoading && shouldFallbackToKol && !kolProfile && (
+      {!userLoading && !kolLoading && shouldFallbackToKol && kolError && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Users size={40} className="text-[var(--color-text-tertiary)] mb-3" />
           <p className="text-[var(--color-text-secondary)] mb-2">Profile not found.</p>

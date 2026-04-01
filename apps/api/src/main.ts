@@ -8,6 +8,13 @@ import { AppModule } from './app.module';
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // Root health check — must be registered before the global prefix so GET / resolves
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app.getHttpAdapter().get('/', (_req: any, res: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    res.json({ status: 'ok', api: '/api/v1' });
+  });
+
   // Global API prefix
   app.setGlobalPrefix('api/v1');
 

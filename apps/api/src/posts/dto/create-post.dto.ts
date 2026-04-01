@@ -2,7 +2,9 @@ import {
   IsArray,
   IsIn,
   IsInt,
+  IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
   MaxLength,
   Min,
@@ -64,4 +66,31 @@ export class CreatePostDto {
   @IsOptional()
   @IsString()
   published_at?: string | null;
+
+  // Trade-call specific fields
+  @IsOptional()
+  @IsString()
+  trade_ticker?: string;
+
+  @IsOptional()
+  @IsIn(['long', 'short'])
+  trade_direction?: 'long' | 'short';
+
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  trade_target_price?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  trade_stop_loss?: number | null;
+
+  @IsOptional()
+  @IsIn(['intraday', 'swing', 'position', 'long_term'])
+  trade_timeframe?: 'intraday' | 'swing' | 'position' | 'long_term';
+
+  @IsOptional()
+  @IsIn(['low', 'medium', 'high'])
+  trade_conviction?: 'low' | 'medium' | 'high';
 }

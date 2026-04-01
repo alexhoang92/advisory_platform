@@ -1,6 +1,43 @@
 # Change Log
 
 ---
+## Session — Port fix, PortfolioCall wiring, KOL credibility, profile entry points (01-Apr-2026)
+
+### 1. API root health check
+- `apps/api/src/main.ts`: registered a `GET /` handler before `setGlobalPrefix` so hitting port 3000 directly returns `{"status":"ok","api":"/api/v1"}` instead of the NestJS 404 envelope.
+
+### 2. PortfolioCall wiring — closes the known gap
+- `packages/shared/src/schemas/post.ts`: added `trade_ticker`, `trade_direction`, `trade_target_price`, `trade_stop_loss`, `trade_timeframe`, `trade_conviction` fields to `CreatePostSchema`.
+- `apps/api/src/posts/dto/create-post.dto.ts`: same fields with class-validator decorators.
+- `apps/api/src/posts/posts.module.ts`: imported `BullModule.registerQueue({ name: 'credibility' })`.
+- `apps/api/src/posts/posts.service.ts`: after `post.create()`, if `post_type === 'trade_call'` with ticker + direction present, creates a `PortfolioCall` row and enqueues a `credibility-recompute` BullMQ job (fire-and-forget, no Redis required).
+- `apps/web/src/pages/CreatePostPage.tsx`: when "Trade Call" post type is selected a structured panel appears with Ticker, Direction (long/short), Target Price, Stop Loss, Timeframe, and Conviction fields.
+
+### 3. Credibility — NO_DATA messaging
+- `apps/web/src/pages/ProfilePage.tsx` (`CredibilityTab`): when `display_state === 'NO_DATA'` and the viewer is the profile owner, shows an actionable message ("Publish at least 10 Trade Call posts to unlock your platform credibility score") with a direct link to Create Post. Non-owner visitors still see "Building track record...".
+
+### 4. T90D price snapshots — fixes 90-day credibility window
+- `pricer/yfinance_fetch.py`: added `("T90D", timedelta(days=90))` to the snapshots list. The credibility engine was querying for `T90D` but the pricer never fetched it, so `success90d` was always `null`. Next run backfills all recommendations ≥ 90 days old.
+
+### 5. Social credibility for unclaimed KOL profiles (Option A)
+- `apps/api/src/credibility/credibility.service.ts`: new public method `computeSocialTrackForHandle(handle)` runs the full social scoring pipeline (confidence filter → ≥ 20 call threshold → return/win-rate calculation → composite score) for any KOL handle without requiring a Hamilton user or persisting to `credibility_scores`.
+- `apps/api/src/kol-profiles/kol-profiles.module.ts`: imports `CredibilityModule`.
+- `apps/api/src/kol-profiles/kol-profiles.controller.ts`: new `GET /api/v1/kol-profiles/:handle/credibility` endpoint (placed before `GET :handle` to avoid routing conflict). Injected `CredibilityService`.
+- `apps/web/src/hooks/useKolCredibility.ts`: new hook targeting the new endpoint (10-minute stale time).
+- `apps/web/src/pages/ProfilePage.tsx` (`KolProfileView`): replaced the single Recommendations tab with two tabs — **Credibility** (default) and **Recommendations**. The Credibility tab always opens with a persistent amber `ⓘ` disclaimer: *"Score computed from public social media activity only. For reference only — not verified by Hamilton."* Empty state shown when < 20 scorable calls.
+
+### 6. Profile entry points
+- `apps/web/src/components/kol/KolLeaderboard.tsx`: each leaderboard row is now a `<Link to="/profile/:handle">`.
+- `apps/web/src/components/kol/HeroSection.tsx`: expert name block and handle text in TopExpertsBox linked to profile; `@kol_handle` in RecentCallsBox linked to profile.
+- `apps/web/src/components/layout/Sidebar.tsx`: avatar + display name + username now link to `/profile/:username`; settings icon is a separate button.
+
+### 7. Bug fix — unclaimed KOL profiles returning "Profile not found"
+- **Root cause A — missing data**: `KolProfilesService.findByHandle` queried Hamilton's `unclaimedKolProfile` table only. Profiles are populated via a daily 2am cron or manual sync; KOLs scraped since the last sync were never found.
+- **Fix**: `findByHandle` now does a lazy sync — on miss it calls `KolService.getKolByHandle(handle)` (new method on `KolService`) to look up the KOL directly in the kol-tracker `kols` table, auto-creates the `unclaimedKolProfile` row, and returns it. The next request hits the cache. No manual sync required.
+- **Root cause B — routing**: `isKolProfile` condition in `ProfilePage` used `kolProfile || kolLoading`, which unmounted `KolProfileView` the moment the query returned `undefined` (during lazy-sync latency), flashing "Profile not found".
+- **Fix**: condition changed to `!kolError` — `KolProfileView` stays mounted until the query definitively errors (handle not in kol-tracker at all).
+
+---
 ## Codebase Optimisation (31-Mar-2026)
 
 ### 1. Shared `OptionalJwtGuard`

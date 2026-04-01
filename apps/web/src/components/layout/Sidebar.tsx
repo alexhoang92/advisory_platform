@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import {
   Home,
   Compass,
@@ -98,33 +98,41 @@ export function Sidebar() {
       {/* User section */}
       {user && (
         <div className="px-3 py-4 border-t border-[var(--color-border)]">
-          <button
-            onClick={() => void navigate('/settings')}
-            className="flex items-center gap-2.5 w-full px-2 py-1.5 mb-2 rounded-lg hover:bg-[var(--color-bg-subtle)] transition-colors group"
-          >
-            <div className="w-8 h-8 rounded-full bg-[var(--color-bg-subtle)] border border-[var(--color-border)] flex items-center justify-center flex-shrink-0">
-              {user.avatar_url ? (
-                <img
-                  src={user.avatar_url}
-                  alt={user.display_name}
-                  className="w-full h-full rounded-full object-cover"
-                />
-              ) : (
-                <span className="font-mono text-xs text-[var(--color-text-secondary)]">
-                  {user.display_name.slice(0, 2).toUpperCase()}
-                </span>
-              )}
-            </div>
-            <div className="min-w-0 flex-1 text-left">
-              <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
-                {user.display_name}
-              </p>
-              <p className="text-xs text-[var(--color-text-tertiary)] font-mono truncate">
-                @{user.username}
-              </p>
-            </div>
-            <Settings size={14} className="text-[var(--color-text-tertiary)] group-hover:text-[var(--color-text-secondary)] flex-shrink-0 transition-colors" />
-          </button>
+          <div className="flex items-center gap-2.5 px-2 py-1.5 mb-2 rounded-lg hover:bg-[var(--color-bg-subtle)] transition-colors group">
+            <Link
+              to={`/profile/${user.username}`}
+              className="flex items-center gap-2.5 flex-1 min-w-0"
+            >
+              <div className="w-8 h-8 rounded-full bg-[var(--color-bg-subtle)] border border-[var(--color-border)] flex items-center justify-center flex-shrink-0">
+                {user.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt={user.display_name}
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="font-mono text-xs text-[var(--color-text-secondary)]">
+                    {user.display_name.slice(0, 2).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1 text-left">
+                <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
+                  {user.display_name}
+                </p>
+                <p className="text-xs text-[var(--color-text-tertiary)] font-mono truncate">
+                  @{user.username}
+                </p>
+              </div>
+            </Link>
+            <button
+              onClick={() => void navigate('/settings')}
+              className="flex-shrink-0 p-1 rounded hover:bg-[var(--color-bg-elevated)] transition-colors"
+              title="Settings"
+            >
+              <Settings size={14} className="text-[var(--color-text-tertiary)] group-hover:text-[var(--color-text-secondary)] transition-colors" />
+            </button>
+          </div>
 
           <button
             onClick={handleLogout}

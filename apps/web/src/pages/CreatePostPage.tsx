@@ -20,6 +20,19 @@ const POST_TYPES = [
   { value: 'update', label: 'Update' },
 ] as const;
 
+const TRADE_TIMEFRAMES = [
+  { value: 'intraday', label: 'Intraday' },
+  { value: 'swing', label: 'Swing' },
+  { value: 'position', label: 'Position' },
+  { value: 'long_term', label: 'Long Term' },
+] as const;
+
+const TRADE_CONVICTIONS = [
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+] as const;
+
 const VISIBILITY_OPTIONS = [
   { value: 'public', label: 'Public', description: 'Everyone can read' },
   { value: 'preview', label: 'Preview', description: 'Public teaser + locked body' },
@@ -159,6 +172,121 @@ export function CreatePostPage() {
               ))}
             </div>
           </div>
+
+          {/* Trade-call structured fields */}
+          {postType === 'trade_call' && (
+            <div className="p-4 rounded-xl border border-[var(--color-border-accent)] bg-[var(--color-accent-muted)] flex flex-col gap-4">
+              <p className="text-xs font-semibold text-[var(--color-accent)] uppercase tracking-wide">
+                Trade Call Details
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Ticker *"
+                  placeholder="e.g. NVDA"
+                  error={errors.trade_ticker?.message}
+                  {...register('trade_ticker')}
+                />
+
+                {/* Direction */}
+                <div>
+                  <p className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wide mb-2">
+                    Direction *
+                  </p>
+                  <div className="flex gap-2">
+                    {(['long', 'short'] as const).map((dir) => (
+                      <button
+                        key={dir}
+                        type="button"
+                        onClick={() => setValue('trade_direction', dir)}
+                        className={[
+                          'flex-1 py-1.5 rounded text-sm font-mono font-bold uppercase transition-all border',
+                          watch('trade_direction') === dir
+                            ? dir === 'long'
+                              ? 'bg-[var(--color-accent)] text-black border-[var(--color-accent)]'
+                              : 'bg-[var(--color-negative)] text-white border-[var(--color-negative)]'
+                            : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-text-tertiary)]',
+                        ].join(' ')}
+                      >
+                        {dir}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Target Price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="e.g. 950.00"
+                  error={errors.trade_target_price?.message}
+                  {...register('trade_target_price', { valueAsNumber: true })}
+                />
+                <Input
+                  label="Stop Loss"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="e.g. 780.00"
+                  error={errors.trade_stop_loss?.message}
+                  {...register('trade_stop_loss', { valueAsNumber: true })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Timeframe */}
+                <div>
+                  <p className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wide mb-2">
+                    Timeframe
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {TRADE_TIMEFRAMES.map((tf) => (
+                      <button
+                        key={tf.value}
+                        type="button"
+                        onClick={() => setValue('trade_timeframe', tf.value)}
+                        className={[
+                          'px-2.5 py-1 rounded text-xs font-medium transition-all border',
+                          watch('trade_timeframe') === tf.value
+                            ? 'bg-[var(--color-accent-muted)] border-[var(--color-border-accent)] text-[var(--color-accent)]'
+                            : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-text-tertiary)]',
+                        ].join(' ')}
+                      >
+                        {tf.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Conviction */}
+                <div>
+                  <p className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wide mb-2">
+                    Conviction
+                  </p>
+                  <div className="flex gap-1.5">
+                    {TRADE_CONVICTIONS.map((cv) => (
+                      <button
+                        key={cv.value}
+                        type="button"
+                        onClick={() => setValue('trade_conviction', cv.value)}
+                        className={[
+                          'flex-1 py-1 rounded text-xs font-medium transition-all border',
+                          watch('trade_conviction') === cv.value
+                            ? 'bg-[var(--color-accent-muted)] border-[var(--color-border-accent)] text-[var(--color-accent)]'
+                            : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-text-tertiary)]',
+                        ].join(' ')}
+                      >
+                        {cv.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <Input
             label="Title"

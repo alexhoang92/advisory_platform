@@ -398,6 +398,31 @@ export class KolService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /** Look up a single KOL by handle in the kol-tracker DB. Returns null if not found. */
+  async getKolByHandle(handle: string): Promise<{
+    id: number;
+    handle: string;
+    display_name: string | null;
+    profile_url: string | null;
+    followers_approx: number | null;
+    content_type: string | null;
+  } | null> {
+    if (!this.pool) return null;
+    try {
+      const { rows } = await this.pool.query(
+        `SELECT id, handle, display_name, profile_url, followers_approx, content_type
+         FROM kols
+         WHERE LOWER(handle) = LOWER($1) AND is_active = true
+         LIMIT 1`,
+        [handle],
+      );
+      return rows[0] ?? null;
+    } catch (err) {
+      console.error('[KolService] getKolByHandle failed:', err);
+      return null;
+    }
+  }
+
   /**
    * Returns all non-excluded recommendations for a KOL handle with T0 / T30D / T90D
    * price snapshots. Used exclusively by CredibilityService for scoring.

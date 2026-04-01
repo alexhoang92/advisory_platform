@@ -134,14 +134,14 @@ function TopExpertsBox({ isLoggedIn }: { isLoggedIn?: boolean }) {
           <div className="flex items-center justify-between gap-2 mb-1.5">
             <div className="flex items-center gap-2 min-w-0">
               <span className={`text-sm font-mono font-bold flex-shrink-0 ${rankColor}`}>#{rank}</span>
-              <div className="min-w-0">
+              <Link to={`/profile/${expert.handle}`} className="min-w-0 hover:opacity-80 transition-opacity">
                 <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate leading-tight">
                   {expert.display_name}
                 </p>
                 <p className="text-[10px] text-[var(--color-text-tertiary)] font-mono leading-tight">
                   @{expert.handle} · {expert.total_calls} calls
                 </p>
-              </div>
+              </Link>
             </div>
             <div className="text-right flex-shrink-0">
               {expert.total_calls === 0 ? (
@@ -160,7 +160,9 @@ function TopExpertsBox({ isLoggedIn }: { isLoggedIn?: boolean }) {
           </div>
           {expert.total_calls > 0 && (
             <p className="text-xs text-[var(--color-text-secondary)]">
-              <span className="text-[var(--color-text-tertiary)]">@{expert.handle}</span>{' '}
+              <Link to={`/profile/${expert.handle}`} className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors">
+                @{expert.handle}
+              </Link>{' '}
               has{' '}
               <span className={expert.avg_return >= 0 ? 'text-[var(--color-accent)] font-semibold' : 'text-red-400 font-semibold'}>
                 {expert.avg_return >= 0 ? '+' : ''}{expert.avg_return.toFixed(1)}% avg return
@@ -425,7 +427,9 @@ function RecentCallsBox({ isLoggedIn }: { isLoggedIn?: boolean }) {
             </span>
           </div>
           <p className="text-xs text-[var(--color-text-secondary)]">
-            <span className="text-[var(--color-text-tertiary)]">@{call.kol_handle}</span>{' '}
+            <Link to={`/profile/${call.kol_handle}`} className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors">
+              @{call.kol_handle}
+            </Link>{' '}
             just called{' '}
             <span className="text-[var(--color-accent)] font-semibold">BUY {call.ticker}</span>
             {call.target_price && (

@@ -63,6 +63,7 @@ def fetch_price_snapshots():
         ("T0",   timedelta(days=0)),
         ("T7D",  timedelta(days=7)),
         ("T30D", timedelta(days=30)),
+        ("T90D", timedelta(days=90)),
     ]
 
     added   = 0

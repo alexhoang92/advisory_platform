@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { Card } from '../ui/Card';
 import { api } from '../../lib/api';
 
@@ -86,8 +87,9 @@ export function KolLeaderboard() {
       {!loading && kols.length > 0 && (
         <div className="flex flex-col gap-0.5">
           {kols.map((kol, i) => (
-            <div
+            <Link
               key={kol.id}
+              to={`/profile/${kol.handle}`}
               className="flex items-center gap-2 px-1 py-1.5 rounded hover:bg-[var(--color-bg-subtle)] transition-colors"
             >
               {/* Rank */}
@@ -140,7 +142,7 @@ export function KolLeaderboard() {
                   </>
                 )}
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

@@ -124,11 +124,30 @@ export class KolProfilesService {
   }
 
   async findByHandle(handle: string, requestingUserId?: string): Promise<KolProfileResult> {
-    const profile = await this.prisma.unclaimedKolProfile.findUnique({
+    let profile = await this.prisma.unclaimedKolProfile.findUnique({
       where: { twitter_handle: handle.toLowerCase() },
       include: { _count: { select: { kol_followers: true } } },
     });
-    if (!profile) throw new NotFoundException(`KOL profile @${handle} not found`);
+
+    // Lazy sync: if not in Hamilton's DB yet, pull directly from kol-tracker and create it
+    if (!profile) {
+      const kol = await this.kolService.getKolByHandle(handle);
+      if (!kol) throw new NotFoundException(`KOL profile @${handle} not found`);
+
+      const created = await this.prisma.unclaimedKolProfile.create({
+        data: {
+          kol_id: kol.id,
+          twitter_handle: kol.handle.toLowerCase(),
+          display_name: kol.display_name ?? kol.handle,
+          followers_count: kol.followers_approx ?? 0,
+          content_type: kol.content_type ?? null,
+          profile_url: kol.profile_url ?? `https://x.com/${kol.handle}`,
+        },
+        include: { _count: { select: { kol_followers: true } } },
+      });
+      profile = created;
+      this.logger.log(`Lazy-synced KOL profile @${handle} from kol-tracker`);
+    }
 
     let is_following = false;
     if (requestingUserId) {
